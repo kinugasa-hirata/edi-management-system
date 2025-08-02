@@ -95,15 +95,6 @@
             background: #047857;
         }
 
-        .btn-test {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .btn-test:hover {
-            background: #d97706;
-        }
-
         .btn-logout {
             background: #dc2626;
             color: white;
@@ -133,27 +124,6 @@
         .record-count {
             color: #6b7280;
             font-weight: 500;
-        }
-
-        .debug-info {
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            font-family: monospace;
-            font-size: 0.9rem;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .debug-info h3 {
-            color: #92400e;
-            margin-bottom: 10px;
-        }
-
-        .debug-item {
-            margin-bottom: 5px;
         }
 
         .empty-state {
@@ -361,6 +331,7 @@
         </div>
 
         <div class="content">
+            <div id="messageContainer"></div>
             <div class="loading" id="loadingIndicator">
                 <div class="spinner"></div>
                 Loading data...
@@ -375,8 +346,19 @@
                 <div class="empty-state">
                     <div class="icon">📊</div>
                     <h3>No EDI Data Loaded</h3>
-                    <p>Welcome to the EDI Management System!</p>
-
+                    <p>Import an EDI file to get started.</p>
+                    
+                    <div class="steps">
+                        <h4>Get started in 2 simple steps:</h4>
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <span>Click "📁 Choose EDI File" to upload your data</span>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <span>Click "Import WebEDI Data" to load orders</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -384,7 +366,6 @@
 
     <script>
         let ediData = [];
-        let debugMode = true; // Enable debug mode
 
         // File input handler
         document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -395,10 +376,6 @@
                 importBtn.disabled = false;
                 importBtn.textContent = `📤 Import ${file.name}`;
                 showMessage(`File selected: ${file.name}`, 'success');
-                
-                if (debugMode) {
-                    updateDebugInfo(`File selected: ${file.name} (${file.size} bytes, type: ${file.type})`);
-                }
             } else {
                 importBtn.disabled = true;
                 importBtn.textContent = '📤 Import WebEDI Data';
@@ -419,17 +396,13 @@
 
             try {
                 showLoading(true);
-                updateDebugInfo(`Starting import of ${file.name}...`);
                 
                 const response = await fetch('/api/import-edi', {
                     method: 'POST',
                     body: formData
                 });
 
-                updateDebugInfo(`Import response status: ${response.status}`);
-                
                 const result = await response.json();
-                updateDebugInfo(`Import result: ${JSON.stringify(result)}`);
 
                 if (result.success) {
                     showMessage(result.message, 'success');
@@ -441,12 +414,8 @@
                     document.getElementById('importBtn').textContent = '📤 Import WebEDI Data';
                 } else {
                     showMessage(result.error || 'Import failed', 'error');
-                    if (result.debug) {
-                        updateDebugInfo(`Debug info: ${JSON.stringify(result.debug)}`);
-                    }
                 }
             } catch (error) {
-                updateDebugInfo(`Import error: ${error.message}`);
                 showMessage('Import failed: ' + error.message, 'error');
             } finally {
                 showLoading(false);
@@ -456,13 +425,10 @@
         async function loadData() {
             try {
                 showLoading(true);
-                updateDebugInfo('Fetching EDI data from /api/edi-data...');
                 
                 const response = await fetch('/api/edi-data');
-                updateDebugInfo(`Data fetch response status: ${response.status}`);
                 
                 if (response.status === 401) {
-                    updateDebugInfo('Authentication failed - redirecting to login');
                     showMessage('Session expired. Please log in again.', 'error');
                     setTimeout(() => {
                         window.location.href = '/';
@@ -475,13 +441,10 @@
                 }
                 
                 const data = await response.json();
-                updateDebugInfo(`Received ${data.length} records from API`);
-                
                 ediData = data;
                 renderTable();
                 
             } catch (error) {
-                updateDebugInfo(`Load data error: ${error.message}`);
                 showMessage('Failed to load data: ' + error.message, 'error');
                 console.error('Error loading data:', error);
             } finally {
@@ -494,28 +457,23 @@
             const recordCount = document.getElementById('recordCount');
             
             recordCount.textContent = `${ediData.length} records`;
-            updateDebugInfo(`Rendering table with ${ediData.length} records`);
 
             if (ediData.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">📊</div>
                         <h3>No EDI Data Loaded</h3>
-                        <p>Click "🧪 Add Test Data" to try with sample data, or import an EDI file to get started.</p>
+                        <p>Import an EDI file to get started.</p>
                         
                         <div class="steps">
-                            <h4>Get started in 3 simple ways:</h4>
+                            <h4>Get started in 2 simple steps:</h4>
                             <div class="step">
                                 <div class="step-number">1</div>
-                                <span>Click "🧪 Add Test Data" to try with sample data</span>
+                                <span>Click "📁 Choose EDI File" to upload your data</span>
                             </div>
                             <div class="step">
                                 <div class="step-number">2</div>
-                                <span>Or click "📁 Choose EDI File" to upload your data</span>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">3</div>
-                                <span>Then click "Import WebEDI Data" to load orders</span>
+                                <span>Click "Import WebEDI Data" to load orders</span>
                             </div>
                         </div>
                     </div>
@@ -566,8 +524,6 @@
             const status = input.value;
 
             try {
-                updateDebugInfo(`Saving status for order ${orderId}: "${status}"`);
-                
                 const response = await fetch(`/api/edi-data/${orderId}`, {
                     method: 'PUT',
                     headers: {
@@ -577,7 +533,6 @@
                 });
 
                 const result = await response.json();
-                updateDebugInfo(`Save status response: ${JSON.stringify(result)}`);
 
                 if (result.success) {
                     showMessage('Status updated successfully', 'success');
@@ -591,7 +546,6 @@
                     showMessage(result.error || 'Failed to update status', 'error');
                 }
             } catch (error) {
-                updateDebugInfo(`Save status error: ${error.message}`);
                 showMessage('Failed to save status: ' + error.message, 'error');
             }
         }
@@ -668,15 +622,13 @@
 
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            updateDebugInfo('Dashboard loaded, fetching initial data...');
             loadData();
         });
 
-        // Auto-refresh data every 60 seconds
+        // Auto-refresh data every 5 minutes
         setInterval(() => {
-            updateDebugInfo('Auto-refreshing data...');
             loadData();
-        }, 60000);
+        }, 300000);
     </script>
 </body>
 </html>
