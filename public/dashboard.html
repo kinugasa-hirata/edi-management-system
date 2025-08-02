@@ -352,12 +352,6 @@
             <button class="btn btn-secondary" id="importBtn" onclick="importData()" disabled>
                 📤 Import WebEDI Data
             </button>
-            <button class="btn btn-test" onclick="addTestData()">
-                🧪 Add Test Data
-            </button>
-            <button class="btn btn-secondary" onclick="fixEncoding()" style="background: #f59e0b;">
-                🔧 Fix Japanese Text
-            </button>
             <button class="btn btn-success" onclick="saveAllChanges()">
                 💾 Save All Changes
             </button>
@@ -367,12 +361,6 @@
         </div>
 
         <div class="content">
-            <div id="debugInfo" class="debug-info" style="display: none;">
-                <h3>🔍 Debug Information</h3>
-                <div id="debugContent"></div>
-            </div>
-
-            <div id="messageContainer"></div>
             <div class="loading" id="loadingIndicator">
                 <div class="spinner"></div>
                 Loading data...
@@ -388,22 +376,7 @@
                     <div class="icon">📊</div>
                     <h3>No EDI Data Loaded</h3>
                     <p>Welcome to the EDI Management System!</p>
-                    
-                    <div class="steps">
-                        <h4>Get started in 3 simple ways:</h4>
-                        <div class="step">
-                            <div class="step-number">1</div>
-                            <span>Click "🧪 Add Test Data" to try with sample data</span>
-                        </div>
-                        <div class="step">
-                            <div class="step-number">2</div>
-                            <span>Or click "📁 Choose EDI File" to upload your data</span>
-                        </div>
-                        <div class="step">
-                            <div class="step-number">3</div>
-                            <span>Then click "Import WebEDI Data" to load orders</span>
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>
@@ -431,85 +404,6 @@
                 importBtn.textContent = '📤 Import WebEDI Data';
             }
         });
-
-        function updateDebugInfo(message) {
-            if (!debugMode) return;
-            
-            const debugInfo = document.getElementById('debugInfo');
-            const debugContent = document.getElementById('debugContent');
-            
-            debugInfo.style.display = 'block';
-            
-            const timestamp = new Date().toLocaleTimeString();
-            const debugItem = document.createElement('div');
-            debugItem.className = 'debug-item';
-            debugItem.textContent = `[${timestamp}] ${message}`;
-            
-            debugContent.appendChild(debugItem);
-            
-            // Keep only last 15 debug messages
-            while (debugContent.children.length > 15) {
-                debugContent.removeChild(debugContent.firstChild);
-            }
-        }
-
-        async function fixEncoding() {
-            try {
-                updateDebugInfo('Fixing Japanese text encoding...');
-                showLoading(true);
-                
-                const response = await fetch('/api/fix-encoding', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                updateDebugInfo(`Fix encoding result: ${JSON.stringify(result)}`);
-                
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    await loadData(); // Reload data to show the fixed text
-                } else {
-                    showMessage(result.error || 'Failed to fix encoding', 'error');
-                }
-            } catch (error) {
-                updateDebugInfo(`Fix encoding error: ${error.message}`);
-                showMessage('Failed to fix encoding: ' + error.message, 'error');
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function addTestData() {
-            try {
-                updateDebugInfo('Adding test data...');
-                showLoading(true);
-                
-                const response = await fetch('/api/add-test-data', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                updateDebugInfo(`Test data result: ${JSON.stringify(result)}`);
-                
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    await loadData(); // Reload data to show the test records
-                } else {
-                    showMessage(result.error || 'Failed to add test data', 'error');
-                }
-            } catch (error) {
-                updateDebugInfo(`Test data error: ${error.message}`);
-                showMessage('Failed to add test data: ' + error.message, 'error');
-            } finally {
-                showLoading(false);
-            }
-        }
 
         async function importData() {
             const fileInput = document.getElementById('fileInput');
