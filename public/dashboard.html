@@ -271,13 +271,53 @@
 
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
+            padding: 80px 20px;
             color: #6c757d;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin: 20px;
         }
 
         .empty-state h3 {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             color: #495057;
+            font-size: 1.4em;
+        }
+
+        .empty-state p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .empty-state .instructions {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 400px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .empty-state .step {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        .empty-state .step-number {
+            background: #667eea;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
         }
 
         @media (max-width: 768px) {
@@ -399,8 +439,24 @@
             if (!data || data.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>No EDI data loaded</h3>
-                        <p>Import an EDI file to get started</p>
+                        <h3>📊 No EDI Data Loaded</h3>
+                        <p>Welcome to the EDI Management System!</p>
+                        <div class="instructions">
+                            <p><strong>Get started in 3 simple steps:</strong></p>
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div>Click "📁 Choose EDI File" above</div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div>Select your EDI file (.EDIdat, .csv, .tsv)</div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div>Click "Import WebEDI Data" to load orders</div>
+                            </div>
+                        </div>
+                        <p>💡 Your data will be automatically sorted by drawing number priority and delivery date</p>
                     </div>
                 `;
                 return;
