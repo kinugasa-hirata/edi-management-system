@@ -95,15 +95,6 @@
             background: #047857;
         }
 
-        .btn-test {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .btn-test:hover {
-            background: #d97706;
-        }
-
         .btn-logout {
             background: #dc2626;
             color: white;
@@ -112,6 +103,108 @@
 
         .btn-logout:hover {
             background: #b91c1c;
+        }
+
+        .filter-controls {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .filter-select, .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 150px;
+        }
+
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn.apply {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .filter-btn.apply:hover {
+            background: #4338ca;
+        }
+
+        .filter-btn.clear {
+            background: #6b7280;
+            color: white;
+        }
+
+        .filter-btn.clear:hover {
+            background: #4b5563;
+        }
+
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+
+        .sortable-header:hover {
+            background: #e5e7eb !important;
+        }
+
+        .sort-indicator {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        .sort-indicator.asc::after {
+            content: '▲';
+        }
+
+        .sort-indicator.desc::after {
+            content: '▼';
         }
 
         .content {
@@ -352,12 +445,6 @@
             <button class="btn btn-secondary" id="importBtn" onclick="importData()" disabled>
                 📤 Import WebEDI Data
             </button>
-            <button class="btn btn-test" onclick="addTestData()">
-                🧪 Add Test Data
-            </button>
-            <button class="btn btn-secondary" onclick="fixEncoding()" style="background: #f59e0b;">
-                🔧 Fix Japanese Text
-            </button>
             <button class="btn btn-success" onclick="saveAllChanges()">
                 💾 Save All Changes
             </button>
@@ -367,15 +454,59 @@
         </div>
 
         <div class="content">
-            <div id="debugInfo" class="debug-info" style="display: none;">
-                <h3>🔍 Debug Information</h3>
-                <div id="debugContent"></div>
-            </div>
-
             <div id="messageContainer"></div>
             <div class="loading" id="loadingIndicator">
                 <div class="spinner"></div>
                 Loading data...
+            </div>
+
+            <div class="filter-controls" id="filterControls" style="display: none;">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Sort by:</label>
+                        <select class="filter-select" id="sortColumn">
+                            <option value="">Default Order</option>
+                            <option value="order_number">Order Number</option>
+                            <option value="drawing_number">Drawing Number</option>
+                            <option value="product_name">Product Name</option>
+                            <option value="quantity">Quantity</option>
+                            <option value="delivery_date">Delivery Date</option>
+                            <option value="status">Status</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Order:</label>
+                        <select class="filter-select" id="sortOrder">
+                            <option value="asc">Ascending (A-Z, 1-9)</option>
+                            <option value="desc">Descending (Z-A, 9-1)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Filter Drawing Number:</label>
+                        <select class="filter-select" id="drawingFilter">
+                            <option value="">All Drawing Numbers</option>
+                            <option value="PP4166-4681P003">PP4166-4681P003</option>
+                            <option value="PP4166-4681P004">PP4166-4681P004</option>
+                            <option value="PP4166-4726P003">PP4166-4726P003</option>
+                            <option value="PP4166-4726P004">PP4166-4726P004</option>
+                            <option value="PP4166-4731P002">PP4166-4731P002</option>
+                            <option value="PP4166-7106P001">PP4166-7106P001</option>
+                            <option value="PP4166-7106P003">PP4166-7106P003</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" class="filter-input" id="searchFilter" placeholder="Search in all fields...">
+                    </div>
+                    
+                    <div class="filter-buttons">
+                        <button class="filter-btn apply" onclick="applyFilters()">Apply</button>
+                        <button class="filter-btn clear" onclick="clearFilters()">Clear</button>
+                    </div>
+                </div>
             </div>
 
             <div class="data-header">
@@ -411,7 +542,12 @@
 
     <script>
         let ediData = [];
-        let debugMode = true; // Enable debug mode
+        let originalData = []; // Keep original order
+        let currentSort = { column: '', direction: '' };
+        let currentFilters = {
+            drawing: '',
+            search: ''
+        };
 
         // File input handler
         document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -422,92 +558,140 @@
                 importBtn.disabled = false;
                 importBtn.textContent = `📤 Import ${file.name}`;
                 showMessage(`File selected: ${file.name}`, 'success');
-                
-                if (debugMode) {
-                    updateDebugInfo(`File selected: ${file.name} (${file.size} bytes, type: ${file.type})`);
-                }
             } else {
                 importBtn.disabled = true;
                 importBtn.textContent = '📤 Import WebEDI Data';
             }
         });
 
-        function updateDebugInfo(message) {
-            if (!debugMode) return;
-            
-            const debugInfo = document.getElementById('debugInfo');
-            const debugContent = document.getElementById('debugContent');
-            
-            debugInfo.style.display = 'block';
-            
-            const timestamp = new Date().toLocaleTimeString();
-            const debugItem = document.createElement('div');
-            debugItem.className = 'debug-item';
-            debugItem.textContent = `[${timestamp}] ${message}`;
-            
-            debugContent.appendChild(debugItem);
-            
-            // Keep only last 15 debug messages
-            while (debugContent.children.length > 15) {
-                debugContent.removeChild(debugContent.firstChild);
+        // Sorting function
+        function sortTable(column) {
+            if (currentSort.column === column) {
+                // Toggle direction if same column
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New column, start with ascending
+                currentSort.column = column;
+                currentSort.direction = 'asc';
             }
+            
+            // Update dropdown to reflect current sort
+            document.getElementById('sortColumn').value = column;
+            document.getElementById('sortOrder').value = currentSort.direction;
+            
+            applyFilters();
         }
 
-        async function fixEncoding() {
-            try {
-                updateDebugInfo('Fixing Japanese text encoding...');
-                showLoading(true);
-                
-                const response = await fetch('/api/fix-encoding', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                updateDebugInfo(`Fix encoding result: ${JSON.stringify(result)}`);
-                
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    await loadData(); // Reload data to show the fixed text
-                } else {
-                    showMessage(result.error || 'Failed to fix encoding', 'error');
-                }
-            } catch (error) {
-                updateDebugInfo(`Fix encoding error: ${error.message}`);
-                showMessage('Failed to fix encoding: ' + error.message, 'error');
-            } finally {
-                showLoading(false);
+        // Apply filters and sorting
+        function applyFilters() {
+            // Get filter values
+            const sortColumn = document.getElementById('sortColumn').value;
+            const sortOrder = document.getElementById('sortOrder').value;
+            const drawingFilter = document.getElementById('drawingFilter').value;
+            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+            
+            // Update current sort if changed via dropdown
+            if (sortColumn) {
+                currentSort.column = sortColumn;
+                currentSort.direction = sortOrder;
+            } else {
+                currentSort.column = '';
+                currentSort.direction = '';
             }
+            
+            // Update current filters
+            currentFilters.drawing = drawingFilter;
+            currentFilters.search = searchFilter;
+            
+            // Start with original data
+            let filteredData = [...originalData];
+            
+            // Apply drawing number filter
+            if (drawingFilter) {
+                filteredData = filteredData.filter(order => 
+                    order.drawing_number === drawingFilter
+                );
+            }
+            
+            // Apply search filter
+            if (searchFilter) {
+                filteredData = filteredData.filter(order => {
+                    const searchableText = [
+                        order.order_number,
+                        order.drawing_number,
+                        order.product_name,
+                        order.quantity?.toString(),
+                        order.delivery_date,
+                        order.status
+                    ].join(' ').toLowerCase();
+                    
+                    return searchableText.includes(searchFilter);
+                });
+            }
+            
+            // Apply sorting
+            if (currentSort.column) {
+                filteredData.sort((a, b) => {
+                    let aVal = a[currentSort.column] || '';
+                    let bVal = b[currentSort.column] || '';
+                    
+                    // Special handling for quantity (numeric)
+                    if (currentSort.column === 'quantity') {
+                        aVal = parseInt(aVal) || 0;
+                        bVal = parseInt(bVal) || 0;
+                    }
+                    // Special handling for dates
+                    else if (currentSort.column === 'delivery_date') {
+                        aVal = new Date(aVal.replace(/\//g, '-')) || new Date(0);
+                        bVal = new Date(bVal.replace(/\//g, '-')) || new Date(0);
+                    }
+                    // String comparison for other fields
+                    else {
+                        aVal = aVal.toString().toLowerCase();
+                        bVal = bVal.toString().toLowerCase();
+                    }
+                    
+                    if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+            
+            // Update displayed data
+            ediData = filteredData;
+            renderTable();
+            updateSortIndicators();
         }
 
-        async function addTestData() {
-            try {
-                updateDebugInfo('Adding test data...');
-                showLoading(true);
-                
-                const response = await fetch('/api/add-test-data', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                updateDebugInfo(`Test data result: ${JSON.stringify(result)}`);
-                
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    await loadData(); // Reload data to show the test records
-                } else {
-                    showMessage(result.error || 'Failed to add test data', 'error');
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('sortColumn').value = '';
+            document.getElementById('sortOrder').value = 'asc';
+            document.getElementById('drawingFilter').value = '';
+            document.getElementById('searchFilter').value = '';
+            
+            currentSort = { column: '', direction: '' };
+            currentFilters = { drawing: '', search: '' };
+            
+            // Reset to original data
+            ediData = [...originalData];
+            renderTable();
+            updateSortIndicators();
+        }
+
+        // Update sort indicators in table headers
+        function updateSortIndicators() {
+            // Clear all indicators
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.className = 'sort-indicator';
+            });
+            
+            // Set current sort indicator
+            if (currentSort.column) {
+                const indicator = document.getElementById(`sort-${currentSort.column}`);
+                if (indicator) {
+                    indicator.className = `sort-indicator ${currentSort.direction}`;
                 }
-            } catch (error) {
-                updateDebugInfo(`Test data error: ${error.message}`);
-                showMessage('Failed to add test data: ' + error.message, 'error');
-            } finally {
-                showLoading(false);
             }
         }
 
@@ -525,17 +709,13 @@
 
             try {
                 showLoading(true);
-                updateDebugInfo(`Starting import of ${file.name}...`);
                 
                 const response = await fetch('/api/import-edi', {
                     method: 'POST',
                     body: formData
                 });
 
-                updateDebugInfo(`Import response status: ${response.status}`);
-                
                 const result = await response.json();
-                updateDebugInfo(`Import result: ${JSON.stringify(result)}`);
 
                 if (result.success) {
                     showMessage(result.message, 'success');
@@ -547,12 +727,8 @@
                     document.getElementById('importBtn').textContent = '📤 Import WebEDI Data';
                 } else {
                     showMessage(result.error || 'Import failed', 'error');
-                    if (result.debug) {
-                        updateDebugInfo(`Debug info: ${JSON.stringify(result.debug)}`);
-                    }
                 }
             } catch (error) {
-                updateDebugInfo(`Import error: ${error.message}`);
                 showMessage('Import failed: ' + error.message, 'error');
             } finally {
                 showLoading(false);
@@ -562,13 +738,10 @@
         async function loadData() {
             try {
                 showLoading(true);
-                updateDebugInfo('Fetching EDI data from /api/edi-data...');
                 
                 const response = await fetch('/api/edi-data');
-                updateDebugInfo(`Data fetch response status: ${response.status}`);
                 
                 if (response.status === 401) {
-                    updateDebugInfo('Authentication failed - redirecting to login');
                     showMessage('Session expired. Please log in again.', 'error');
                     setTimeout(() => {
                         window.location.href = '/';
@@ -581,13 +754,19 @@
                 }
                 
                 const data = await response.json();
-                updateDebugInfo(`Received ${data.length} records from API`);
                 
-                ediData = data;
+                // Store original data and current display data
+                originalData = [...data];
+                ediData = [...data];
+                
                 renderTable();
                 
+                // Show filter controls if we have data
+                if (data.length > 0) {
+                    document.getElementById('filterControls').style.display = 'block';
+                }
+                
             } catch (error) {
-                updateDebugInfo(`Load data error: ${error.message}`);
                 showMessage('Failed to load data: ' + error.message, 'error');
                 console.error('Error loading data:', error);
             } finally {
@@ -610,18 +789,14 @@
                         <p>Click "🧪 Add Test Data" to try with sample data, or import an EDI file to get started.</p>
                         
                         <div class="steps">
-                            <h4>Get started in 3 simple ways:</h4>
+                            <h4>Get started in 2 simple steps:</h4>
                             <div class="step">
                                 <div class="step-number">1</div>
-                                <span>Click "🧪 Add Test Data" to try with sample data</span>
+                                <span>Click "📁 Choose EDI File" to upload your data</span>
                             </div>
                             <div class="step">
                                 <div class="step-number">2</div>
-                                <span>Or click "📁 Choose EDI File" to upload your data</span>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">3</div>
-                                <span>Then click "Import WebEDI Data" to load orders</span>
+                                <span>Click "Import WebEDI Data" to load orders</span>
                             </div>
                         </div>
                     </div>
@@ -634,12 +809,30 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>注文番号<br><small>Order Number</small></th>
-                                <th>図番<br><small>Drawing Number</small></th>
-                                <th>品名<br><small>Product Name</small></th>
-                                <th>注文数量<br><small>Quantity</small></th>
-                                <th>納期<br><small>Delivery Date</small></th>
-                                <th>Status<br><small>Comments</small></th>
+                                <th class="sortable-header" onclick="sortTable('order_number')">
+                                    注文番号<br><small>Order Number</small>
+                                    <span class="sort-indicator" id="sort-order_number"></span>
+                                </th>
+                                <th class="sortable-header" onclick="sortTable('drawing_number')">
+                                    図番<br><small>Drawing Number</small>
+                                    <span class="sort-indicator" id="sort-drawing_number"></span>
+                                </th>
+                                <th class="sortable-header" onclick="sortTable('product_name')">
+                                    品名<br><small>Product Name</small>
+                                    <span class="sort-indicator" id="sort-product_name"></span>
+                                </th>
+                                <th class="sortable-header" onclick="sortTable('quantity')">
+                                    注文数量<br><small>Quantity</small>
+                                    <span class="sort-indicator" id="sort-quantity"></span>
+                                </th>
+                                <th class="sortable-header" onclick="sortTable('delivery_date')">
+                                    納期<br><small>Delivery Date</small>
+                                    <span class="sort-indicator" id="sort-delivery_date"></span>
+                                </th>
+                                <th class="sortable-header" onclick="sortTable('status')">
+                                    Status<br><small>Comments</small>
+                                    <span class="sort-indicator" id="sort-status"></span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -672,8 +865,6 @@
             const status = input.value;
 
             try {
-                updateDebugInfo(`Saving status for order ${orderId}: "${status}"`);
-                
                 const response = await fetch(`/api/edi-data/${orderId}`, {
                     method: 'PUT',
                     headers: {
@@ -683,7 +874,6 @@
                 });
 
                 const result = await response.json();
-                updateDebugInfo(`Save status response: ${JSON.stringify(result)}`);
 
                 if (result.success) {
                     showMessage('Status updated successfully', 'success');
@@ -697,7 +887,6 @@
                     showMessage(result.error || 'Failed to update status', 'error');
                 }
             } catch (error) {
-                updateDebugInfo(`Save status error: ${error.message}`);
                 showMessage('Failed to save status: ' + error.message, 'error');
             }
         }
@@ -774,15 +963,13 @@
 
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            updateDebugInfo('Dashboard loaded, fetching initial data...');
             loadData();
         });
 
-        // Auto-refresh data every 60 seconds
+        // Auto-refresh data every 5 minutes
         setInterval(() => {
-            updateDebugInfo('Auto-refreshing data...');
             loadData();
-        }, 60000);
+        }, 300000);
     </script>
 </body>
 </html>
