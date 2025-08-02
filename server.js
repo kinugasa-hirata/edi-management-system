@@ -4,6 +4,7 @@ const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
+const { Readable } = require('stream');
 require('dotenv').config();
 
 const app = express();
@@ -15,9 +16,14 @@ let sql = null;
 
 // Initialize database connection
 if (isProduction) {
-  const { sql: vercelSql } = require('@vercel/postgres');
-  sql = vercelSql;
-  console.log('🌐 Using Vercel Postgres (Production)');
+  try {
+    const { sql: vercelSql } = require('@vercel/postgres');
+    sql = vercelSql;
+    console.log('🌐 Using Vercel Postgres (Production)');
+  } catch (error) {
+    console.error('❌ Failed to initialize Vercel Postgres:', error);
+    sql = null;
+  }
 } else {
   console.log('🛠️ Using in-memory storage (Development)');
 }
@@ -27,32 +33,37 @@ let inMemoryData = [];
 let nextId = 1;
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
-// Enhanced session configuration
+// Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'edi-secret-key-2024',
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    secure: false, // Set to false for localhost
+    maxAge: 24 * 60 * 60 * 1000,
+    secure: false,
     httpOnly: true,
     sameSite: 'lax'
   },
-  name: 'edi.session.id' // Custom session name
+  name: 'edi.session.id'
 }));
 
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`📍 ${req.method} ${req.path} - Session ID: ${req.sessionID} - User: ${req.session?.user?.username || 'Not logged in'}`);
+  console.log(`📍 ${req.method} ${req.path}`);
   next();
 });
 
-// Multer configuration for file uploads
-const upload = multer({ dest: 'uploads/' });
+// Serverless-compatible Multer configuration (memory storage)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 4 * 1024 * 1024 // 4MB limit for serverless
+  }
+});
 
 // Drawing Number priority order
 const DRAWING_NUMBER_ORDER = [
@@ -67,14 +78,13 @@ const DRAWING_NUMBER_ORDER = [
 
 // Enhanced authentication middleware
 function enhancedRequireAuth(req, res, next) {
-  console.log('🔐 Auth check - Session:', req.session);
   console.log('🔐 Auth check - User:', req.session?.user);
   
   if (req.session && req.session.user) {
     console.log('✅ Authentication successful');
     next();
   } else {
-    console.log('❌ Authentication failed - redirecting');
+    console.log('❌ Authentication failed');
     res.status(401).json({ error: 'Authentication required', redirect: '/' });
   }
 }
@@ -97,17 +107,23 @@ async function initializeDatabase() {
         )
       `;
       await sql.query(createTableQuery);
+      
+      const createIndexQuery = `
+        CREATE INDEX IF NOT EXISTS idx_edi_orders_drawing_number 
+        ON edi_orders(drawing_number)
+      `;
+      await sql.query(createIndexQuery);
+      
       console.log('✅ Vercel Postgres table initialized');
     } catch (error) {
       console.error('❌ Database initialization error:', error);
     }
   } else {
     console.log('✅ In-memory storage initialized');
-    console.log('💡 Note: Data will not persist after server restart');
   }
 }
 
-// Helper function to parse dates in YYYY/MM/DD format
+// Helper function to parse dates
 function parseDate(dateString) {
   if (!dateString) return new Date('9999-12-31');
   
@@ -124,8 +140,6 @@ function parseDate(dateString) {
 
 async function getAllOrders() {
   console.log('🔍 getAllOrders called');
-  console.log('🌍 isProduction:', isProduction);
-  console.log('💾 inMemoryData length:', inMemoryData.length);
   
   if (isProduction && sql) {
     try {
@@ -155,28 +169,23 @@ async function getAllOrders() {
       return [];
     }
   } else {
-    console.log('📝 Using in-memory data');
-    console.log('📊 Raw inMemoryData:', JSON.stringify(inMemoryData, null, 2));
-    
-    // Sort in-memory data with proper date sorting
+    // Sort in-memory data
     const sorted = inMemoryData.sort((a, b) => {
       const aIndex = DRAWING_NUMBER_ORDER.indexOf(a.drawing_number);
       const bIndex = DRAWING_NUMBER_ORDER.indexOf(b.drawing_number);
       const aPriority = aIndex === -1 ? 999 : aIndex;
       const bPriority = bIndex === -1 ? 999 : bIndex;
       
-      // First sort by drawing number priority
       if (aPriority !== bPriority) {
         return aPriority - bPriority;
       }
       
-      // Then sort by delivery date (earlier dates first)
       const dateA = parseDate(a.delivery_date);
       const dateB = parseDate(b.delivery_date);
       return dateA - dateB;
     });
     
-    console.log('📊 Sorted data:', sorted.length, 'records');
+    console.log('📊 In-memory data:', sorted.length, 'records');
     return sorted;
   }
 }
@@ -196,7 +205,6 @@ async function updateOrderStatus(orderId, status) {
       return false;
     }
   } else {
-    // Update in-memory data
     const order = inMemoryData.find(o => o.id == orderId);
     if (order) {
       order.status = status;
@@ -208,7 +216,7 @@ async function updateOrderStatus(orderId, status) {
 }
 
 async function addOrder(orderData) {
-  console.log('➕ addOrder called with:', JSON.stringify(orderData, null, 2));
+  console.log('➕ addOrder called with:', orderData.orderNumber);
   
   if (isProduction && sql) {
     try {
@@ -230,7 +238,7 @@ async function addOrder(orderData) {
         console.log('✅ Added to Postgres:', orderData.orderNumber);
         return { added: true, skipped: false };
       } else {
-        console.log('⚠️ Skipped duplicate in Postgres:', orderData.orderNumber);
+        console.log('⚠️ Skipped duplicate:', orderData.orderNumber);
         return { added: false, skipped: true };
       }
     } catch (error) {
@@ -238,7 +246,6 @@ async function addOrder(orderData) {
       return { added: false, skipped: false, error: true };
     }
   } else {
-    // Add to in-memory data
     const existing = inMemoryData.find(o => o.order_number === orderData.orderNumber);
     if (!existing) {
       const newOrder = {
@@ -254,30 +261,22 @@ async function addOrder(orderData) {
       };
       inMemoryData.push(newOrder);
       console.log('✅ Added to memory:', orderData.orderNumber);
-      console.log('📊 Total records in memory:', inMemoryData.length);
-      console.log('📋 New record:', JSON.stringify(newOrder, null, 2));
       return { added: true, skipped: false };
     } else {
-      console.log('⚠️ Skipped duplicate in memory:', orderData.orderNumber);
+      console.log('⚠️ Skipped duplicate:', orderData.orderNumber);
       return { added: false, skipped: true };
     }
   }
 }
 
-// Utility function to clean product names
+// Utility functions
 function cleanProductName(productName) {
   if (!productName) return '';
-  
-  // Remove "RO" + numbers pattern and trim whitespace
   let cleaned = productName.replace(/\s*RO\d+\s*$/i, '').trim();
-  
-  // Remove any trailing whitespace and extra characters
   cleaned = cleaned.replace(/\s+$/, '');
-  
   return cleaned;
 }
 
-// Utility function to format dates
 function formatDate(dateString) {
   if (!dateString) return null;
   
@@ -297,49 +296,79 @@ function formatDate(dateString) {
 
 // Routes
 
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: isProduction ? 'production' : 'development',
+    database: sql ? 'postgres' : 'memory'
+  });
+});
+
 // Login page
 app.get('/', (req, res) => {
-  if (req.session.user) {
-    res.redirect('/dashboard');
-  } else {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  try {
+    if (req.session.user) {
+      res.redirect('/dashboard');
+    } else {
+      res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    }
+  } catch (error) {
+    console.error('❌ Error in root route:', error);
+    res.status(500).send('Server error');
   }
 });
 
 // Dashboard page
 app.get('/dashboard', enhancedRequireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+  try {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+  } catch (error) {
+    console.error('❌ Error in dashboard route:', error);
+    res.status(500).send('Server error');
+  }
 });
 
-// Enhanced login endpoint
+// Login endpoint
 app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  console.log('🔑 Login attempt:', { username, hasPassword: !!password });
-  
-  // Check if username starts with "admin" and has 4 digits
-  const adminPattern = /^admin\d{4}$/;
-  
-  if (adminPattern.test(username)) {
-    req.session.user = { username, loginTime: new Date().toISOString() };
-    console.log('✅ Login successful for:', username);
-    console.log('🍪 Session created:', req.session);
-    res.json({ success: true, message: 'Login successful' });
-  } else {
-    console.log('❌ Login failed for:', username);
-    res.status(401).json({ success: false, message: 'Invalid credentials. Username must be "admin" + 4 digits' });
+  try {
+    const { username, password } = req.body;
+    console.log('🔑 Login attempt:', { username });
+    
+    const adminPattern = /^admin\d{4}$/;
+    
+    if (adminPattern.test(username)) {
+      req.session.user = { username, loginTime: new Date().toISOString() };
+      console.log('✅ Login successful for:', username);
+      res.json({ success: true, message: 'Login successful' });
+    } else {
+      console.log('❌ Login failed for:', username);
+      res.status(401).json({ 
+        success: false, 
+        message: 'Invalid credentials. Username must be "admin" + 4 digits' 
+      });
+    }
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({ success: false, message: 'Login failed' });
   }
 });
 
 // Logout endpoint
 app.post('/api/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
+  try {
+    req.session.destroy();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Logout error:', error);
+    res.status(500).json({ success: false, message: 'Logout failed' });
+  }
 });
 
-// Get all EDI data with sorting
+// Get all EDI data
 app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   console.log('🌐 GET /api/edi-data called');
-  console.log('👤 User session:', req.session.user);
   
   try {
     const orders = await getAllOrders();
@@ -370,11 +399,9 @@ app.put('/api/edi-data/:orderId', enhancedRequireAuth, async (req, res) => {
   }
 });
 
-// Replace your entire import handler in server.js with this:
-
+// Import EDI data from file (using memory storage for serverless)
 app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async (req, res) => {
   console.log('📁 Import EDI file called');
-  console.log('👤 User session:', req.session.user);
   
   try {
     if (!req.file) {
@@ -383,84 +410,60 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
     }
 
     console.log('📄 File info:', {
-      filename: req.file.filename,
-      originalname: req.file.originalname,
+      filename: req.file.originalname,
       size: req.file.size,
       mimetype: req.file.mimetype
     });
 
     const results = [];
-    const filePath = req.file.path;
     
-    // Try to detect and handle Japanese encoding
+    // Get file content from memory buffer (no file system access needed)
     let fileContent;
     let detectedEncoding = 'utf8';
     
     try {
-      // Try to read as binary first to detect encoding
-      const buffer = fs.readFileSync(filePath);
+      const buffer = req.file.buffer;
       
-      // Check if iconv-lite is available for Japanese encoding
+      // Try to handle Japanese encoding
       let iconv;
       try {
         iconv = require('iconv-lite');
-        console.log('✅ iconv-lite is available for encoding detection');
+        console.log('✅ iconv-lite available for encoding detection');
       } catch (iconvError) {
-        console.log('⚠️ iconv-lite not found. Install with: npm install iconv-lite');
+        console.log('⚠️ iconv-lite not found, using UTF-8');
         iconv = null;
       }
       
-      // Try different encodings if iconv-lite is available
       if (iconv) {
-        // Try Shift-JIS first (most common for Japanese EDI files)
         try {
           fileContent = iconv.decode(buffer, 'shift_jis');
           detectedEncoding = 'shift_jis';
-          console.log('🇯🇵 Trying Shift-JIS encoding...');
+          console.log('🇯🇵 Using Shift-JIS encoding');
           
-          // Check if this looks better (no weird symbols)
           const testLine = fileContent.split('\n')[0] || '';
-          if (!testLine.includes('◆') && !testLine.includes('◇') && !testLine.includes('�')) {
-            console.log('✅ Shift-JIS encoding successful!');
-          } else {
+          if (testLine.includes('◆') || testLine.includes('◇') || testLine.includes('�')) {
             throw new Error('Still has corrupted characters');
           }
         } catch (sjisError) {
-          console.log('⚠️ Shift-JIS failed, trying EUC-JP...');
-          try {
-            fileContent = iconv.decode(buffer, 'euc-jp');
-            detectedEncoding = 'euc-jp';
-            console.log('✅ EUC-JP encoding successful!');
-          } catch (eucError) {
-            console.log('⚠️ EUC-JP failed, trying ISO-2022-JP...');
-            try {
-              fileContent = iconv.decode(buffer, 'iso-2022-jp');
-              detectedEncoding = 'iso-2022-jp';
-              console.log('✅ ISO-2022-JP encoding successful!');
-            } catch (isoError) {
-              console.log('⚠️ All Japanese encodings failed, using UTF-8');
-              fileContent = buffer.toString('utf8');
-              detectedEncoding = 'utf8';
-            }
-          }
+          console.log('⚠️ Shift-JIS failed, using UTF-8');
+          fileContent = buffer.toString('utf8');
+          detectedEncoding = 'utf8';
         }
       } else {
-        // Fallback to UTF-8 if iconv-lite is not available
         fileContent = buffer.toString('utf8');
         detectedEncoding = 'utf8';
       }
       
     } catch (error) {
-      console.log('❌ Error reading file:', error);
-      fileContent = fs.readFileSync(filePath, 'utf8');
+      console.log('❌ Error reading file buffer:', error);
+      fileContent = req.file.buffer.toString('utf8');
       detectedEncoding = 'utf8';
     }
     
-    const lines = fileContent.split('\n').slice(0, 5);
-    
+    const lines = fileContent.split('\n').slice(0, 3);
     console.log(`📋 File preview with ${detectedEncoding} encoding:`);
     lines.forEach((line, index) => {
-      console.log(`Line ${index + 1}:`, line.substring(0, 150));
+      console.log(`Line ${index + 1}:`, line.substring(0, 100));
     });
     
     // Detect separator
@@ -469,22 +472,15 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
     
     if (firstLine.includes('\t')) {
       separator = '\t';
-      console.log('🔍 Detected separator: TAB');
     } else if (firstLine.includes(',')) {
       separator = ',';
-      console.log('🔍 Detected separator: COMMA');
     } else if (firstLine.includes(';')) {
       separator = ';';
-      console.log('🔍 Detected separator: SEMICOLON');
     }
     
-    // Analyze column structure
-    const sampleColumns = firstLine.split(separator);
-    console.log('📊 Total columns detected:', sampleColumns.length);
-    console.log('📋 Sample columns:', sampleColumns.slice(0, 10));
+    console.log('🔍 Detected separator:', separator === '\t' ? 'TAB' : separator);
     
-    // Create stream from properly encoded content
-    const { Readable } = require('stream');
+    // Create stream from content
     const contentStream = new Readable();
     contentStream.push(fileContent);
     contentStream.push(null);
@@ -503,12 +499,6 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
         rowCount++;
         const columns = Object.values(row);
         
-        if (rowCount <= 3) {
-          console.log(`📋 Row ${rowCount} preview:`, columns.slice(0, 25).map(col => 
-            col ? col.toString().substring(0, 20) : ''
-          ));
-        }
-        
         let orderData = null;
         
         // Strategy 1: Original mapping
@@ -522,10 +512,7 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
           };
           
           if (orderData.orderNumber && orderData.orderNumber.startsWith('LK')) {
-            console.log(`✅ Found order: ${orderData.orderNumber}`);
-            if (rowCount <= 5) {
-              console.log(`🏷️ Product name: "${orderData.productName}"`);
-            }
+            // Valid order found
           } else {
             orderData = null;
           }
@@ -544,27 +531,23 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
                 deliveryDate: ''
               };
               
-              // Find other data around the LK number
+              // Find other data
               for (let j = 0; j < columns.length; j++) {
                 const colValue = columns[j]?.toString().trim();
                 if (!colValue) continue;
                 
-                // Look for quantity
                 if (/^\d+$/.test(colValue) && parseInt(colValue) > 0 && parseInt(colValue) < 10000) {
                   orderData.quantity = parseInt(colValue);
                 }
                 
-                // Look for drawing number
                 if (colValue.startsWith('PP4166')) {
                   orderData.drawingNumber = colValue;
                 }
                 
-                // Look for date
                 if (/^\d{4}\/\d{2}\/\d{2}$/.test(colValue)) {
                   orderData.deliveryDate = colValue;
                 }
                 
-                // Look for product name (not LK, not PP4166, not pure number, not date)
                 if (colValue.length > 3 && 
                     !colValue.startsWith('LK') && 
                     !colValue.startsWith('PP4166') && 
@@ -586,7 +569,6 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
       })
       .on('end', async () => {
         console.log(`📊 Import summary: ${rowCount} rows processed, ${validOrdersFound} valid orders found`);
-        console.log(`🔤 Encoding used: ${detectedEncoding}`);
         
         try {
           let imported = 0;
@@ -604,8 +586,6 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
               console.error('❌ Error processing order:', order.orderNumber, error);
             }
           }
-          
-          fs.unlinkSync(filePath);
           
           res.json({
             success: true,
@@ -636,124 +616,33 @@ app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async
   }
 });
 
-// Also add this endpoint to fix existing corrupted data
-app.post('/api/fix-encoding', enhancedRequireAuth, async (req, res) => {
-  console.log('🔧 Fixing encoding for existing data...');
-  
-  try {
-    let fixed = 0;
-    
-    if (isProduction && sql) {
-      // Fix in database
-      const updateQuery = `
-        UPDATE edi_orders 
-        SET product_name = '日本語商品名 (Japanese Product)'
-        WHERE product_name LIKE '%◆%' OR product_name LIKE '%◇%'
-      `;
-      const result = await sql.query(updateQuery);
-      fixed = result.rowCount || 0;
-    } else {
-      // Fix in memory
-      for (const order of inMemoryData) {
-        if (order.product_name && (order.product_name.includes('◆') || order.product_name.includes('◇'))) {
-          const originalName = order.product_name;
-          order.product_name = '日本語商品名 (Japanese Product)';
-          console.log(`🔧 Fixed: ${originalName} → ${order.product_name}`);
-          fixed++;
-        }
-      }
-    }
-    
-    console.log(`✅ Fixed ${fixed} product names`);
-    
-    res.json({
-      success: true,
-      message: `Fixed encoding for ${fixed} product names. Re-import your file with proper encoding for better results.`,
-      fixed
-    });
-  } catch (error) {
-    console.error('❌ Error fixing encoding:', error);
-    res.status(500).json({ error: 'Failed to fix encoding' });
-  }
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('❌ Unhandled error:', error);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: isProduction ? 'Something went wrong' : error.message 
+  });
 });
 
-// Add this endpoint to your server.js (after the import handler)
-
-app.post('/api/fix-encoding', enhancedRequireAuth, async (req, res) => {
-  console.log('🔧 Fixing encoding for existing data...');
-  
+// Initialize database and start server
+async function startServer() {
   try {
-    let fixed = 0;
+    console.log('🚀 Starting EDI Management System...');
+    await initializeDatabase();
     
-    if (isProduction && sql) {
-      // Fix in database
-      const updateQuery = `
-        UPDATE edi_orders 
-        SET product_name = '日本語商品名 (Japanese Product)'
-        WHERE product_name LIKE '%◆%' OR product_name LIKE '%◇%'
-      `;
-      const result = await sql.query(updateQuery);
-      fixed = result.rowCount || 0;
-    } else {
-      // Fix in memory
-      for (const order of inMemoryData) {
-        if (order.product_name && (order.product_name.includes('◆') || order.product_name.includes('◇'))) {
-          const originalName = order.product_name;
-          order.product_name = '日本語商品名 (Japanese Product)';
-          console.log(`🔧 Fixed: ${originalName} → ${order.product_name}`);
-          fixed++;
-        }
-      }
+    if (!isProduction) {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+      });
     }
     
-    console.log(`✅ Fixed ${fixed} product names`);
-    
-    res.json({
-      success: true,
-      message: `Fixed encoding for ${fixed} product names. Re-import your file with proper encoding for better results.`,
-      fixed
-    });
+    console.log('✅ Server initialization complete');
   } catch (error) {
-    console.error('❌ Error fixing encoding:', error);
-    res.status(500).json({ error: 'Failed to fix encoding' });
-  }
-});
-
-// Initialize with empty data for clean start
-function initializeEmptyData() {
-  if (!isProduction) {
-    console.log('✅ Started with empty dataset');
-    console.log('💡 Upload an EDI file to import your data');
+    console.error('❌ Failed to start server:', error);
   }
 }
 
-// Initialize database and start server
-initializeDatabase().then(() => {
-  initializeEmptyData();
-  
-  app.listen(PORT, () => {
-    console.log(`🚀 EDI Management System running on port ${PORT}`);
-    console.log(`📱 Login: http://localhost:${PORT}`);
-    console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
-    
-    if (!isProduction) {
-      console.log('');
-      console.log('🛠️ DEVELOPMENT MODE');
-      console.log('   - Using in-memory storage');
-      console.log('   - Data will reset on server restart');
-      console.log('   - Starting with empty dataset');
-      console.log('');
-      console.log('📤 To get started:');
-      console.log('   1. Login with admin + 4 digits (e.g., admin1234)');
-      console.log('   2. Use "🧪 Add Test Data" to add sample orders');
-      console.log('   3. Or upload your EDI file using "Choose EDI File"');
-      console.log('');
-      console.log('🌐 For production deployment:');
-      console.log('   1. Deploy to Vercel: vercel');
-      console.log('   2. Set up Vercel Postgres database');
-      console.log('   3. Data will persist in production');
-    }
-  });
-});
+startServer();
 
 module.exports = app;
