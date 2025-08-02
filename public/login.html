@@ -12,116 +12,144 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
 
         .login-container {
             background: white;
             padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: 400px;
+        }
+
+        .header {
             text-align: center;
-        }
-
-        .logo {
-            font-size: 2.5em;
-            color: #667eea;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .subtitle {
-            color: #666;
             margin-bottom: 30px;
-            font-size: 1.1em;
+        }
+
+        .header h1 {
+            color: #1f2937;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #6b7280;
+            font-size: 1rem;
         }
 
         .form-group {
             margin-bottom: 20px;
-            text-align: left;
         }
 
-        label {
+        .form-group label {
             display: block;
-            margin-bottom: 5px;
-            color: #333;
+            margin-bottom: 8px;
+            color: #374151;
             font-weight: 500;
         }
 
-        input[type="text"], input[type="password"] {
+        .form-group input {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 1rem;
             transition: border-color 0.3s ease;
         }
 
-        input[type="text"]:focus, input[type="password"]:focus {
+        .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
         .login-btn {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             border: none;
+            padding: 12px 16px;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: background-color 0.3s ease;
         }
 
         .login-btn:hover {
-            transform: translateY(-2px);
+            background: #4338ca;
         }
 
         .login-btn:disabled {
-            opacity: 0.6;
+            background: #9ca3af;
             cursor: not-allowed;
-            transform: none;
         }
 
-        .error-message {
-            color: #e74c3c;
-            margin-top: 15px;
-            padding: 10px;
-            background: #fdf2f2;
-            border-radius: 5px;
-            border-left: 4px solid #e74c3c;
-            display: none;
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
         }
 
         .help-text {
             margin-top: 20px;
-            color: #666;
-            font-size: 0.9em;
-            line-height: 1.4;
+            padding: 16px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            color: #4b5563;
+            font-size: 0.9rem;
+        }
+
+        .help-text h4 {
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .example {
+            font-family: monospace;
+            background: #e5e7eb;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #1f2937;
         }
 
         .loading {
             display: none;
-            margin-top: 10px;
+            text-align: center;
+            color: #6b7280;
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #4f46e5;
             border-radius: 50%;
             width: 20px;
             height: 20px;
             animation: spin 1s linear infinite;
-            margin: 0 auto;
+            display: inline-block;
+            margin-right: 10px;
         }
 
         @keyframes spin {
@@ -132,9 +160,18 @@
 </head>
 <body>
     <div class="login-container">
-        <div class="logo">📊 EDI</div>
-        <div class="subtitle">Management System</div>
+        <div class="header">
+            <h1>📊 EDI System</h1>
+            <p>Electronic Data Interchange Management</p>
+        </div>
+
+        <div id="messageContainer"></div>
         
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            Logging in...
+        </div>
+
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">Username</label>
@@ -142,95 +179,112 @@
                     type="text" 
                     id="username" 
                     name="username" 
-                    placeholder="admin + 4 digits (e.g., admin1234)"
+                    placeholder="admin1234" 
                     required
-                    pattern="admin\d{4}"
-                    title="Username must be 'admin' followed by 4 digits"
+                    autocomplete="username"
                 >
             </div>
-            
+
             <div class="form-group">
                 <label for="password">Password</label>
                 <input 
                     type="password" 
                     id="password" 
                     name="password" 
-                    placeholder="Enter your password"
+                    placeholder="Enter any password" 
                     required
+                    autocomplete="current-password"
                 >
             </div>
-            
+
             <button type="submit" class="login-btn" id="loginBtn">
-                Login
+                🔑 Login
             </button>
-            
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-            </div>
-            
-            <div class="error-message" id="errorMessage"></div>
         </form>
-        
+
         <div class="help-text">
-            <strong>Access Requirements:</strong><br>
-            Username format: admin + any 4 digits<br>
-            Example: admin1234, admin5678, admin9999
+            <h4>Login Instructions:</h4>
+            <p>Username must be "admin" followed by exactly 4 digits.</p>
+            <p><strong>Examples:</strong> <span class="example">admin1234</span>, <span class="example">admin5678</span>, <span class="example">admin0000</span></p>
+            <p>Password can be anything.</p>
         </div>
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const loginBtn = document.getElementById('loginBtn');
-            const loading = document.getElementById('loading');
-            const errorMessage = document.getElementById('errorMessage');
+            const loading = document.getElementById('loadingIndicator');
+            
+            // Validate username format before sending
+            const adminPattern = /^admin\d{4}$/;
+            if (!adminPattern.test(username)) {
+                showMessage('Username must be "admin" followed by exactly 4 digits (e.g., admin1234)', 'error');
+                return;
+            }
             
             // Show loading state
             loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
             loading.style.display = 'block';
-            errorMessage.style.display = 'none';
             
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username, password }),
+                    body: JSON.stringify({ username, password })
                 });
                 
                 const result = await response.json();
                 
                 if (result.success) {
-                    window.location.href = '/dashboard';
+                    showMessage('Login successful! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1000);
                 } else {
-                    errorMessage.textContent = result.message;
-                    errorMessage.style.display = 'block';
+                    showMessage(result.message || 'Login failed', 'error');
                 }
             } catch (error) {
-                errorMessage.textContent = 'Login failed. Please try again.';
-                errorMessage.style.display = 'block';
+                showMessage('Network error. Please check your connection.', 'error');
+                console.error('Login error:', error);
             } finally {
-                // Reset button state
                 loginBtn.disabled = false;
-                loginBtn.textContent = 'Login';
                 loading.style.display = 'none';
             }
         });
-
-        // Real-time username validation
-        document.getElementById('username').addEventListener('input', (e) => {
-            const username = e.target.value;
-            const pattern = /^admin\d{4}$/;
+        
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = '';
             
-            if (username && !pattern.test(username)) {
-                e.target.style.borderColor = '#e74c3c';
-            } else {
-                e.target.style.borderColor = '#e1e5e9';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            container.appendChild(messageDiv);
+            
+            // Remove message after 5 seconds for error messages
+            if (type === 'error') {
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 5000);
+            }
+        }
+
+        // Auto-focus username field
+        document.getElementById('username').focus();
+
+        // Add Enter key support for password field
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
             }
         });
     </script>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDI Management Dashboard</title>
+    <title>EDI Management System - Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -12,256 +12,303 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
-            color: #333;
-        }
-
-        .header {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.8em;
-            font-weight: bold;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .logout-btn {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            background: rgba(255,255,255,0.3);
+            min-height: 100vh;
+            padding: 20px;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
         }
 
         .controls {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
             display: flex;
-            gap: 20px;
+            gap: 15px;
             align-items: center;
             flex-wrap: wrap;
         }
 
-        .file-input-container {
-            position: relative;
-            display: inline-block;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .file-input-label {
-            background: #667eea;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-            display: inline-block;
-        }
-
-        .file-input-label:hover {
-            background: #5a6fd8;
-        }
-
-        .import-btn, .save-all-btn {
-            background: #27ae60;
-            color: white;
+        .btn {
+            padding: 12px 24px;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            border-radius: 8px;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s ease;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .import-btn:hover {
-            background: #229954;
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
         }
 
-        .save-all-btn {
-            background: #e67e22;
+        .btn-primary:hover {
+            background: #4338ca;
+            transform: translateY(-2px);
         }
 
-        .save-all-btn:hover {
-            background: #d35400;
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
         }
 
-        .import-btn:disabled, .save-all-btn:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
+        .btn-secondary:hover {
+            background: #4b5563;
         }
 
-        .status-message {
-            padding: 10px 15px;
-            border-radius: 5px;
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #047857;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-logout {
+            background: #dc2626;
+            color: white;
             margin-left: auto;
-            min-width: 200px;
-            text-align: center;
+        }
+
+        .btn-logout:hover {
+            background: #b91c1c;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .data-header h2 {
+            color: #1f2937;
+            font-size: 1.5rem;
+        }
+
+        .record-count {
+            color: #6b7280;
             font-weight: 500;
         }
 
-        .status-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .debug-info {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
-        .status-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .debug-info h3 {
+            color: #92400e;
+            margin-bottom: 10px;
         }
 
-        .status-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+        .debug-item {
+            margin-bottom: 5px;
+            padding: 2px 0;
         }
 
-        .data-table-container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
         }
 
-        .table-header {
-            background: #f8f9fa;
-            padding: 15px 20px;
-            border-bottom: 2px solid #e9ecef;
-            font-weight: 600;
-            font-size: 1.1em;
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
         }
 
-        .data-table {
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #374151;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+
+        .steps {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: left;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .steps h4 {
+            color: #374151;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        .step-number {
+            background: #4f46e5;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        table {
             width: 100%;
             border-collapse: collapse;
             background: white;
         }
 
-        .data-table th,
-        .data-table td {
+        th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid #e5e7eb;
         }
 
-        .data-table th {
-            background: #f8f9fa;
+        th {
+            background: #f8fafc;
             font-weight: 600;
-            color: #495057;
+            color: #374151;
             position: sticky;
             top: 0;
-            z-index: 10;
         }
 
-        .data-table tr:hover {
-            background: #f8f9fa;
+        tbody tr:hover {
+            background: #f9fafb;
         }
 
         .status-input {
             width: 100%;
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid #d1d5db;
             border-radius: 4px;
-            font-size: 14px;
-            min-height: 60px;
-            resize: vertical;
-        }
-
-        .status-input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+            font-size: 0.9rem;
         }
 
         .save-btn {
-            background: #28a745;
+            background: #059669;
             color: white;
             border: none;
             padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 0.8rem;
             margin-top: 5px;
-            transition: background 0.3s ease;
         }
 
         .save-btn:hover {
-            background: #218838;
+            background: #047857;
         }
 
-        .save-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
         }
 
-        .drawing-number {
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            color: #495057;
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
         }
 
-        .order-number {
-            font-family: 'Courier New', monospace;
-            color: #6c757d;
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
         }
 
-        .quantity {
+        #fileInput {
+            display: none;
+        }
+
+        .loading {
+            display: none;
             text-align: center;
-            font-weight: 600;
+            padding: 20px;
+            color: #6b7280;
         }
 
-        .delivery-date {
-            font-family: 'Courier New', monospace;
-            color: #495057;
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #667eea;
+        .spinner {
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #4f46e5;
             border-radius: 50%;
+            width: 20px;
+            height: 20px;
             animation: spin 1s linear infinite;
-            margin-right: 8px;
+            display: inline-block;
+            margin-right: 10px;
         }
 
         @keyframes spin {
@@ -269,385 +316,421 @@
             100% { transform: rotate(360deg); }
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 80px 20px;
-            color: #6c757d;
-            background: #f8f9fa;
-            border-radius: 10px;
-            margin: 20px;
-        }
-
-        .empty-state h3 {
-            margin-bottom: 15px;
-            color: #495057;
-            font-size: 1.4em;
-        }
-
-        .empty-state p {
-            margin-bottom: 10px;
-            line-height: 1.6;
-        }
-
-        .empty-state .instructions {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px auto;
-            max-width: 400px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .empty-state .step {
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            text-align: left;
-        }
-
-        .empty-state .step-number {
-            background: #667eea;
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            margin-right: 12px;
-            flex-shrink: 0;
-        }
-
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
                 align-items: stretch;
             }
-            
-            .status-message {
-                margin-left: 0;
-                margin-top: 10px;
+
+            .btn {
+                text-align: center;
             }
-            
-            .data-table {
-                font-size: 14px;
+
+            .data-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
             }
-            
-            .data-table th,
-            .data-table td {
-                padding: 8px;
+
+            .steps {
+                margin: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <div class="logo">📊 EDI Management System</div>
-            <div class="user-info">
-                <span id="username">Loading...</span>
-                <button class="logout-btn" onclick="logout()">Logout</button>
-            </div>
-        </div>
-    </div>
-
     <div class="container">
+        <div class="header">
+            <h1>📊 EDI Management System</h1>
+            <p>Electronic Data Interchange Order Management</p>
+        </div>
+
         <div class="controls">
-            <div class="file-input-container">
-                <input type="file" id="ediFile" class="file-input" accept=".csv,.tsv,.txt,.EDIdat" />
-                <label for="ediFile" class="file-input-label">
-                    📁 Choose EDI File
-                </label>
-            </div>
-            
-            <button class="import-btn" id="importBtn" onclick="importEDI()" disabled>
-                Import WebEDI Data
+            <input type="file" id="fileInput" accept=".csv,.tsv,.EDIdat" />
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                📁 Choose EDI File
             </button>
-            
-            <button class="save-all-btn" id="saveAllBtn" onclick="saveAllChanges()">
+            <button class="btn btn-secondary" id="importBtn" onclick="importData()" disabled>
+                📤 Import WebEDI Data
+            </button>
+            <button class="btn btn-success" onclick="saveAllChanges()">
                 💾 Save All Changes
             </button>
-            
-            <div class="status-message" id="statusMessage" style="display: none;"></div>
+            <button class="btn btn-warning" onclick="addTestData()">
+                🧪 Add Test Data
+            </button>
+            <button class="btn btn-logout" onclick="logout()">
+                🚪 Logout
+            </button>
         </div>
 
-        <div class="data-table-container">
-            <div class="table-header">
-                EDI Orders Data
-                <span id="recordCount" style="float: right; color: #6c757d; font-weight: normal;"></span>
+        <div class="content">
+            <div id="debugInfo" class="debug-info" style="display: none;">
+                <h3>🔍 Debug Information</h3>
+                <div id="debugContent"></div>
             </div>
-            
-            <div id="tableContainer">
+
+            <div id="messageContainer"></div>
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                Loading data...
+            </div>
+
+            <div class="data-header">
+                <h2>EDI Orders Data</h2>
+                <span class="record-count" id="recordCount">0 records</span>
+            </div>
+
+            <div id="dataContainer">
                 <div class="empty-state">
-                    <h3>No EDI data loaded</h3>
-                    <p>Import an EDI file to get started</p>
+                    <div class="icon">📊</div>
+                    <h3>No EDI Data Loaded</h3>
+                    <p>Welcome to the EDI Management System!</p>
+                    
+                    <div class="steps">
+                        <h4>Get started in 3 simple steps:</h4>
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <span>Click "🧪 Add Test Data" for quick testing</span>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <span>Or click "📁 Choose EDI File" to upload your data</span>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <span>Edit status and save changes</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        let currentData = [];
-        let hasUnsavedChanges = false;
+        let ediData = [];
+        let debugMode = true; // Enable debug mode
 
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', () => {
-            loadEDIData();
-            setupFileInput();
+        // File input handler
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const importBtn = document.getElementById('importBtn');
+            
+            if (file) {
+                importBtn.disabled = false;
+                importBtn.textContent = `📤 Import ${file.name}`;
+                showMessage(`File selected: ${file.name}`, 'success');
+                
+                if (debugMode) {
+                    updateDebugInfo(`File selected: ${file.name} (${file.size} bytes, type: ${file.type})`);
+                }
+            } else {
+                importBtn.disabled = true;
+                importBtn.textContent = '📤 Import WebEDI Data';
+            }
         });
 
-        // Setup file input handler
-        function setupFileInput() {
-            document.getElementById('ediFile').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                const importBtn = document.getElementById('importBtn');
-                
-                if (file) {
-                    importBtn.disabled = false;
-                    showStatus(`File selected: ${file.name}`, 'info');
-                } else {
-                    importBtn.disabled = true;
-                }
-            });
-        }
-
-        // Load EDI data from server
-        async function loadEDIData() {
-            try {
-                const response = await fetch('/api/edi-data');
-                if (response.status === 401) {
-                    window.location.href = '/';
-                    return;
-                }
-                
-                const data = await response.json();
-                currentData = data;
-                renderTable(data);
-                updateRecordCount(data.length);
-            } catch (error) {
-                console.error('Error loading data:', error);
-                showStatus('Error loading EDI data', 'error');
+        function updateDebugInfo(message) {
+            if (!debugMode) return;
+            
+            const debugInfo = document.getElementById('debugInfo');
+            const debugContent = document.getElementById('debugContent');
+            
+            debugInfo.style.display = 'block';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const debugItem = document.createElement('div');
+            debugItem.className = 'debug-item';
+            debugItem.textContent = `[${timestamp}] ${message}`;
+            
+            debugContent.appendChild(debugItem);
+            
+            // Keep only last 15 debug messages
+            while (debugContent.children.length > 15) {
+                debugContent.removeChild(debugContent.firstChild);
             }
         }
 
-        // Render the data table
-        function renderTable(data) {
-            const container = document.getElementById('tableContainer');
+        async function addTestData() {
+            try {
+                updateDebugInfo('Adding test data...');
+                showLoading(true);
+                
+                const response = await fetch('/api/add-test-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                updateDebugInfo(`Test data result: ${JSON.stringify(result)}`);
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    await loadData(); // Reload data to show the test records
+                } else {
+                    showMessage(result.error || 'Failed to add test data', 'error');
+                }
+            } catch (error) {
+                updateDebugInfo(`Test data error: ${error.message}`);
+                showMessage('Failed to add test data: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function importData() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
             
-            if (!data || data.length === 0) {
+            if (!file) {
+                showMessage('Please select a file first', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ediFile', file);
+
+            try {
+                showLoading(true);
+                updateDebugInfo(`Starting import of ${file.name}...`);
+                
+                const response = await fetch('/api/import-edi', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                updateDebugInfo(`Import response status: ${response.status}`);
+                
+                const result = await response.json();
+                updateDebugInfo(`Import result: ${JSON.stringify(result)}`);
+
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    await loadData(); // Reload data after import
+                    
+                    // Reset file input
+                    fileInput.value = '';
+                    document.getElementById('importBtn').disabled = true;
+                    document.getElementById('importBtn').textContent = '📤 Import WebEDI Data';
+                } else {
+                    showMessage(result.error || 'Import failed', 'error');
+                    if (result.debug) {
+                        updateDebugInfo(`Import debug info: ${JSON.stringify(result.debug)}`);
+                    }
+                }
+            } catch (error) {
+                updateDebugInfo(`Import error: ${error.message}`);
+                showMessage('Import failed: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadData() {
+            try {
+                showLoading(true);
+                updateDebugInfo('Fetching EDI data from /api/edi-data...');
+                
+                const response = await fetch('/api/edi-data');
+                updateDebugInfo(`Data fetch response status: ${response.status}`);
+                
+                if (response.status === 401) {
+                    updateDebugInfo('Authentication failed - redirecting to login');
+                    showMessage('Session expired. Please log in again.', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                updateDebugInfo(`Received ${data.length} records from API`);
+                
+                ediData = data;
+                renderTable();
+                
+            } catch (error) {
+                updateDebugInfo(`Load data error: ${error.message}`);
+                showMessage('Failed to load data: ' + error.message, 'error');
+                console.error('Error loading data:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderTable() {
+            const container = document.getElementById('dataContainer');
+            const recordCount = document.getElementById('recordCount');
+            
+            recordCount.textContent = `${ediData.length} records`;
+            updateDebugInfo(`Rendering table with ${ediData.length} records`);
+
+            if (ediData.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>📊 No EDI Data Loaded</h3>
-                        <p>Welcome to the EDI Management System!</p>
-                        <div class="instructions">
-                            <p><strong>Get started in 3 simple steps:</strong></p>
+                        <div class="icon">📊</div>
+                        <h3>No EDI Data Loaded</h3>
+                        <p>Click "🧪 Add Test Data" to get started or upload an EDI file.</p>
+                        
+                        <div class="steps">
+                            <h4>Get started in 3 simple steps:</h4>
                             <div class="step">
                                 <div class="step-number">1</div>
-                                <div>Click "📁 Choose EDI File" above</div>
+                                <span>Click "🧪 Add Test Data" for quick testing</span>
                             </div>
                             <div class="step">
                                 <div class="step-number">2</div>
-                                <div>Select your EDI file (.EDIdat, .csv, .tsv)</div>
+                                <span>Or click "📁 Choose EDI File" to upload your data</span>
                             </div>
                             <div class="step">
                                 <div class="step-number">3</div>
-                                <div>Click "Import WebEDI Data" to load orders</div>
+                                <span>Edit status and save changes</span>
                             </div>
                         </div>
-                        <p>💡 Your data will be automatically sorted by drawing number priority and delivery date</p>
                     </div>
                 `;
                 return;
             }
 
-            const table = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>注文番号<br><small>Order Number</small></th>
-                            <th>注文数量<br><small>Quantity</small></th>
-                            <th>品名<br><small>Product Name</small></th>
-                            <th>図番<br><small>Drawing Number</small></th>
-                            <th>納期<br><small>Delivery Date</small></th>
-                            <th style="width: 300px;">Status / Comments</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.map(row => `
+            const tableHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
                             <tr>
-                                <td class="order-number">${row.order_number}</td>
-                                <td class="quantity">${row.quantity}</td>
-                                <td>${row.product_name || ''}</td>
-                                <td class="drawing-number">${row.drawing_number}</td>
-                                <td class="delivery-date">${row.delivery_date}</td>
-                                <td>
-                                    <textarea 
-                                        class="status-input" 
-                                        data-order-id="${row.id}"
-                                        placeholder="Add status or comments..."
-                                        onchange="markAsChanged(this)"
-                                    >${row.status || ''}</textarea>
-                                    <button 
-                                        class="save-btn" 
-                                        onclick="saveStatus(${row.id}, this.previousElementSibling)"
-                                    >
-                                        Save
-                                    </button>
-                                </td>
+                                <th>注文番号<br><small>Order Number</small></th>
+                                <th>注文数量<br><small>Quantity</small></th>
+                                <th>品名<br><small>Product Name</small></th>
+                                <th>図番<br><small>Drawing Number</small></th>
+                                <th>納期<br><small>Delivery Date</small></th>
+                                <th>Status<br><small>Comments</small></th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            ${ediData.map(order => `
+                                <tr>
+                                    <td><strong>${order.order_number || ''}</strong></td>
+                                    <td>${order.quantity || ''}</td>
+                                    <td>${order.product_name || ''}</td>
+                                    <td><strong>${order.drawing_number || ''}</strong></td>
+                                    <td>${order.delivery_date || ''}</td>
+                                    <td>
+                                        <input type="text" class="status-input" 
+                                               value="${order.status || ''}" 
+                                               data-order-id="${order.id}"
+                                               placeholder="Add comments...">
+                                        <button class="save-btn" onclick="saveStatus(${order.id})">Save</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
             `;
-            
-            container.innerHTML = table;
+
+            container.innerHTML = tableHTML;
         }
 
-        // Mark textarea as changed
-        function markAsChanged(textarea) {
-            textarea.style.borderColor = '#ffc107';
-            hasUnsavedChanges = true;
-            document.getElementById('saveAllBtn').style.background = '#e67e22';
-        }
+        async function saveStatus(orderId) {
+            const input = document.querySelector(`[data-order-id="${orderId}"]`);
+            const status = input.value;
 
-        // Save individual status
-        async function saveStatus(orderId, textarea) {
-            const button = textarea.nextElementSibling;
-            const originalText = button.textContent;
-            
             try {
-                button.disabled = true;
-                button.innerHTML = '<span class="loading-spinner"></span>Saving...';
+                updateDebugInfo(`Saving status for order ${orderId}: "${status}"`);
                 
                 const response = await fetch(`/api/edi-data/${orderId}`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        status: textarea.value
-                    }),
+                    body: JSON.stringify({ status })
                 });
-                
-                if (response.ok) {
-                    textarea.style.borderColor = '#28a745';
-                    button.textContent = 'Saved!';
-                    setTimeout(() => {
-                        button.textContent = originalText;
-                        textarea.style.borderColor = '#ddd';
-                    }, 2000);
-                } else {
-                    throw new Error('Save failed');
-                }
-            } catch (error) {
-                console.error('Error saving status:', error);
-                textarea.style.borderColor = '#dc3545';
-                button.textContent = 'Error!';
-                setTimeout(() => {
-                    button.textContent = originalText;
-                }, 2000);
-            } finally {
-                button.disabled = false;
-            }
-        }
 
-        // Save all changes
-        async function saveAllChanges() {
-            const textareas = document.querySelectorAll('.status-input');
-            let saveCount = 0;
-            
-            for (const textarea of textareas) {
-                if (textarea.style.borderColor === 'rgb(255, 193, 7)') { // Changed items
-                    const orderId = textarea.dataset.orderId;
-                    try {
-                        await fetch(`/api/edi-data/${orderId}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                status: textarea.value
-                            }),
-                        });
-                        textarea.style.borderColor = '#ddd';
-                        saveCount++;
-                    } catch (error) {
-                        console.error('Error saving status for order:', orderId, error);
-                    }
-                }
-            }
-            
-            if (saveCount > 0) {
-                showStatus(`${saveCount} status updates saved successfully`, 'success');
-                hasUnsavedChanges = false;
-                document.getElementById('saveAllBtn').style.background = '#6c757d';
-            } else {
-                showStatus('No changes to save', 'info');
-            }
-        }
-
-        // Import EDI data
-        async function importEDI() {
-            const fileInput = document.getElementById('ediFile');
-            const importBtn = document.getElementById('importBtn');
-            
-            if (!fileInput.files[0]) {
-                showStatus('Please select a file first', 'error');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('ediFile', fileInput.files[0]);
-            
-            try {
-                importBtn.disabled = true;
-                importBtn.innerHTML = '<span class="loading-spinner"></span>Importing...';
-                showStatus('Importing EDI data...', 'info');
-                
-                const response = await fetch('/api/import-edi', {
-                    method: 'POST',
-                    body: formData,
-                });
-                
                 const result = await response.json();
-                
+                updateDebugInfo(`Save status response: ${JSON.stringify(result)}`);
+
                 if (result.success) {
-                    showStatus(result.message, 'success');
-                    loadEDIData(); // Refresh the table
-                    fileInput.value = ''; // Clear file input
+                    showMessage('Status updated successfully', 'success');
+                    
+                    // Update local data
+                    const order = ediData.find(o => o.id == orderId);
+                    if (order) {
+                        order.status = status;
+                    }
                 } else {
-                    showStatus(result.error || 'Import failed', 'error');
+                    showMessage(result.error || 'Failed to update status', 'error');
                 }
             } catch (error) {
-                console.error('Import error:', error);
-                showStatus('Import failed. Please try again.', 'error');
-            } finally {
-                importBtn.disabled = true;
-                importBtn.textContent = 'Import WebEDI Data';
+                updateDebugInfo(`Save status error: ${error.message}`);
+                showMessage('Failed to save status: ' + error.message, 'error');
             }
         }
 
-        // Show status message
-        function showStatus(message, type) {
-            const statusElement = document.getElementById('statusMessage');
-            statusElement.textContent = message;
-            statusElement.className = `status-message status-${type}`;
-            statusElement.style.display = 'block';
+        async function saveAllChanges() {
+            const inputs = document.querySelectorAll('.status-input');
+            let updated = 0;
+            let errors = 0;
+
+            showLoading(true);
+
+            for (const input of inputs) {
+                const orderId = input.getAttribute('data-order-id');
+                const status = input.value;
+
+                try {
+                    const response = await fetch(`/api/edi-data/${orderId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ status })
+                    });
+
+                    if (response.ok) {
+                        updated++;
+                    } else {
+                        errors++;
+                    }
+                } catch (error) {
+                    errors++;
+                }
+            }
+
+            showLoading(false);
             
-            // Auto-hide after 5 seconds
+            if (errors === 0) {
+                showMessage(`All ${updated} changes saved successfully`, 'success');
+            } else {
+                showMessage(`${updated} saved, ${errors} errors occurred`, 'error');
+            }
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            container.appendChild(messageDiv);
+            
+            // Remove message after 5 seconds
             setTimeout(() => {
-                statusElement.style.display = 'none';
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
             }, 5000);
         }
 
-        // Update record count
-        function updateRecordCount(count) {
-            document.getElementById('recordCount').textContent = `${count} records`;
+        function showLoading(show) {
+            const loading = document.getElementById('loadingIndicator');
+            loading.style.display = show ? 'block' : 'none';
         }
 
-        // Logout function
         async function logout() {
             try {
                 await fetch('/api/logout', { method: 'POST' });
@@ -658,13 +741,17 @@
             }
         }
 
-        // Warn about unsaved changes
-        window.addEventListener('beforeunload', (e) => {
-            if (hasUnsavedChanges) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDebugInfo('Dashboard loaded, fetching initial data...');
+            loadData();
         });
+
+        // Auto-refresh data every 60 seconds
+        setInterval(() => {
+            updateDebugInfo('Auto-refreshing data...');
+            loadData();
+        }, 60000);
     </script>
 </body>
 </html>
