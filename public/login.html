@@ -27,7 +27,7 @@
             border-radius: 12px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
         }
 
         .header {
@@ -83,6 +83,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            margin-bottom: 15px;
         }
 
         .login-btn:hover {
@@ -92,6 +93,51 @@
         .login-btn:disabled {
             background: #9ca3af;
             cursor: not-allowed;
+        }
+
+        .quick-login {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quick-btn {
+            padding: 10px 16px;
+            border: 2px solid #e5e7eb;
+            background: #f9fafb;
+            color: #374151;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .quick-btn:hover {
+            border-color: #4f46e5;
+            background: #f0f4ff;
+            color: #4f46e5;
+        }
+
+        .quick-btn.admin {
+            border-color: #dc2626;
+            color: #dc2626;
+        }
+
+        .quick-btn.admin:hover {
+            background: #fef2f2;
+            border-color: #dc2626;
+        }
+
+        .quick-btn.user {
+            border-color: #059669;
+            color: #059669;
+        }
+
+        .quick-btn.user:hover {
+            background: #f0fdf4;
+            border-color: #059669;
         }
 
         .message {
@@ -127,12 +173,54 @@
             margin-bottom: 8px;
         }
 
+        .user-types {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .user-type {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .user-type.admin {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+        .user-type.user {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+
+        .user-type h5 {
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .user-type.admin h5 {
+            color: #dc2626;
+        }
+
+        .user-type.user h5 {
+            color: #059669;
+        }
+
+        .user-type p {
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
         .example {
             font-family: monospace;
             background: #e5e7eb;
             padding: 4px 8px;
             border-radius: 4px;
             color: #1f2937;
+            font-size: 0.8rem;
         }
 
         .loading {
@@ -156,6 +244,31 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            display: inline-block;
+            width: 40%;
+            height: 1px;
+            background: #e5e7eb;
+            vertical-align: middle;
+        }
+
+        .divider::before {
+            margin-right: 10px;
+        }
+
+        .divider::after {
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -172,6 +285,18 @@
             Logging in...
         </div>
 
+        <!-- Quick Login Buttons -->
+        <div class="quick-login">
+            <button class="quick-btn admin" onclick="quickLogin('admin')">
+                🔑 Admin Login
+            </button>
+            <button class="quick-btn user" onclick="quickLogin('user')">
+                👁️ View Only Login
+            </button>
+        </div>
+
+        <div class="divider">OR</div>
+
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">Username</label>
@@ -179,7 +304,7 @@
                     type="text" 
                     id="username" 
                     name="username" 
-                    placeholder="admin1234" 
+                    placeholder="admin1234 or user5678" 
                     required
                     autocomplete="username"
                 >
@@ -204,13 +329,39 @@
 
         <div class="help-text">
             <h4>Login Instructions:</h4>
-            <p>Username must be "admin" followed by exactly 4 digits.</p>
-            <p><strong>Examples:</strong> <span class="example">admin1234</span>, <span class="example">admin5678</span>, <span class="example">admin0000</span></p>
-            <p>Password can be anything.</p>
+            
+            <div class="user-types">
+                <div class="user-type admin">
+                    <h5>🔑 Admin Access</h5>
+                    <p>Username: <span class="example">admin + 4 digits</span></p>
+                    <p>Can view and edit all data</p>
+                    <p>Examples: <span class="example">admin1234</span>, <span class="example">admin0000</span></p>
+                </div>
+                
+                <div class="user-type user">
+                    <h5>👁️ View Only Access</h5>
+                    <p>Username: <span class="example">user + 4 digits</span></p>
+                    <p>Can only view data, no editing</p>
+                    <p>Examples: <span class="example">user5678</span>, <span class="example">user1111</span></p>
+                </div>
+            </div>
+            
+            <p style="margin-top: 10px;"><strong>Password:</strong> Can be anything for demonstration purposes.</p>
         </div>
     </div>
 
     <script>
+        function quickLogin(type) {
+            const randomNumber = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+            const username = `${type}${randomNumber}`;
+            
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = 'demo';
+            
+            // Auto-submit the form
+            document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -221,8 +372,10 @@
             
             // Validate username format before sending
             const adminPattern = /^admin\d{4}$/;
-            if (!adminPattern.test(username)) {
-                showMessage('Username must be "admin" followed by exactly 4 digits (e.g., admin1234)', 'error');
+            const userPattern = /^user\d{4}$/;
+            
+            if (!adminPattern.test(username) && !userPattern.test(username)) {
+                showMessage('Username must be "admin" or "user" followed by exactly 4 digits (e.g., admin1234, user5678)', 'error');
                 return;
             }
             
@@ -242,7 +395,8 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    showMessage('Login successful! Redirecting...', 'success');
+                    const accessType = result.role === 'admin' ? 'Admin' : 'View-Only';
+                    showMessage(`${accessType} login successful! Redirecting...`, 'success');
                     setTimeout(() => {
                         window.location.href = '/dashboard';
                     }, 1000);

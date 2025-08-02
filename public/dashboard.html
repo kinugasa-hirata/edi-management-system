@@ -32,6 +32,7 @@
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -44,6 +45,36 @@
             font-size: 1.1rem;
         }
 
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-role {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .user-role.admin {
+            background: #dc2626;
+            color: white;
+        }
+
+        .user-role.user {
+            background: #059669;
+            color: white;
+        }
+
         .controls {
             padding: 30px;
             background: #f8fafc;
@@ -52,6 +83,31 @@
             gap: 15px;
             align-items: center;
             flex-wrap: wrap;
+        }
+
+        .admin-only {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .admin-only.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .read-only-notice {
+            display: none;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            margin-left: auto;
+            font-size: 0.9rem;
+        }
+
+        .read-only-notice.show {
+            display: block;
         }
 
         .btn {
@@ -72,7 +128,7 @@
             color: white;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: #4338ca;
             transform: translateY(-2px);
         }
@@ -82,7 +138,7 @@
             color: white;
         }
 
-        .btn-secondary:hover {
+        .btn-secondary:hover:not(:disabled) {
             background: #4b5563;
         }
 
@@ -91,7 +147,7 @@
             color: white;
         }
 
-        .btn-success:hover {
+        .btn-success:hover:not(:disabled) {
             background: #047857;
         }
 
@@ -103,6 +159,12 @@
 
         .btn-logout:hover {
             background: #b91c1c;
+        }
+
+        .btn:disabled {
+            background: #9ca3af !important;
+            cursor: not-allowed !important;
+            transform: none !important;
         }
 
         .content {
@@ -370,6 +432,12 @@
             font-size: 0.9rem;
         }
 
+        .status-input:disabled {
+            background: #f3f4f6;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+
         .save-btn {
             background: #059669;
             color: white;
@@ -381,8 +449,13 @@
             margin-top: 5px;
         }
 
-        .save-btn:hover {
+        .save-btn:hover:not(:disabled) {
             background: #047857;
+        }
+
+        .save-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
         }
 
         .message {
@@ -402,6 +475,12 @@
             background: #fee2e2;
             color: #991b1b;
             border: 1px solid #ef4444;
+        }
+
+        .message.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
         }
 
         #fileInput {
@@ -450,27 +529,39 @@
             .steps {
                 margin: 20px;
             }
+
+            .user-info {
+                position: static;
+                margin-bottom: 15px;
+                text-align: center;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
+            <div class="user-info" id="userInfo">
+                <span id="userDisplay">Loading...</span>
+            </div>
             <h1>📊 EDI Management System</h1>
             <p>Electronic Data Interchange Order Management</p>
         </div>
 
         <div class="controls">
             <input type="file" id="fileInput" accept=".csv,.tsv,.EDIdat" />
-            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+            <button class="btn btn-primary admin-only" id="chooseFileBtn" onclick="document.getElementById('fileInput').click()">
                 📁 Choose EDI File
             </button>
-            <button class="btn btn-secondary" id="importBtn" onclick="importData()" disabled>
+            <button class="btn btn-secondary admin-only" id="importBtn" onclick="importData()" disabled>
                 📤 Import WebEDI Data
             </button>
-            <button class="btn btn-success" onclick="saveAllChanges()">
+            <button class="btn btn-success admin-only" id="saveAllBtn" onclick="saveAllChanges()">
                 💾 Save All Changes
             </button>
+            <div class="read-only-notice" id="readOnlyNotice">
+                👁️ View-Only Mode - Contact admin for edit access
+            </div>
             <button class="btn btn-logout" onclick="logout()">
                 🚪 Logout
             </button>
@@ -494,9 +585,9 @@
                     <div class="empty-state">
                         <div class="icon">📊</div>
                         <h3>No EDI Data Loaded</h3>
-                        <p>Import an EDI file to get started.</p>
+                        <p id="emptyStateMessage">Import an EDI file to get started.</p>
                         
-                        <div class="steps">
+                        <div class="steps" id="getStartedSteps">
                             <h4>Get started in 2 simple steps:</h4>
                             <div class="step">
                                 <div class="step-number">1</div>
@@ -527,6 +618,8 @@
     <script>
         let ediData = [];
         let currentView = 'main';
+        let userPermissions = { canEdit: false, canView: true };
+        let currentUser = null;
         
         // Drawing numbers with product names
         const DRAWING_NUMBER_ORDER = [
@@ -549,6 +642,85 @@
             'PP4166-7106P001': 'ﾐﾄﾞﾙﾌﾚｰﾑ',
             'PP4166-7106P003': 'ﾐﾄﾞﾙﾌﾚｰﾑ'
         };
+
+        // Product icons mapping
+        const PRODUCT_ICONS = {
+            'PP4166-4681P003': '🔧',
+            'PP4166-4681P004': '🔧',
+            'PP4166-4726P003': '⚙️',
+            'PP4166-4726P004': '⚙️',
+            'PP4166-4731P002': '🔩',
+            'PP4166-7106P001': '🔩',
+            'PP4166-7106P003': '🔩'
+        };
+
+        // Load user info and set permissions
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const userInfo = await response.json();
+                    currentUser = userInfo;
+                    userPermissions = userInfo.permissions;
+                    
+                    // Update UI based on permissions
+                    updateUIForPermissions();
+                    
+                    // Update user display
+                    const userDisplay = document.getElementById('userDisplay');
+                    const roleClass = userInfo.role === 'admin' ? 'admin' : 'user';
+                    const roleText = userInfo.role === 'admin' ? 'ADMIN' : 'VIEW ONLY';
+                    userDisplay.innerHTML = `
+                        ${userInfo.username}
+                        <span class="user-role ${roleClass}">${roleText}</span>
+                    `;
+                } else {
+                    // User not logged in, redirect to login
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                showMessage('Failed to load user information', 'error');
+            }
+        }
+
+        // Update UI based on user permissions
+        function updateUIForPermissions() {
+            const adminElements = document.querySelectorAll('.admin-only');
+            const readOnlyNotice = document.getElementById('readOnlyNotice');
+            const emptyStateMessage = document.getElementById('emptyStateMessage');
+            const getStartedSteps = document.getElementById('getStartedSteps');
+
+            if (!userPermissions.canEdit) {
+                // Disable admin elements
+                adminElements.forEach(element => {
+                    element.classList.add('disabled');
+                    if (element.tagName === 'BUTTON') {
+                        element.disabled = true;
+                    }
+                });
+                
+                // Show read-only notice
+                readOnlyNotice.classList.add('show');
+                
+                // Update empty state message for read-only users
+                if (emptyStateMessage && getStartedSteps) {
+                    emptyStateMessage.textContent = 'No EDI data available. Contact admin to import data.';
+                    getStartedSteps.style.display = 'none';
+                }
+            } else {
+                // Enable admin elements
+                adminElements.forEach(element => {
+                    element.classList.remove('disabled');
+                    if (element.tagName === 'BUTTON') {
+                        element.disabled = false;
+                    }
+                });
+                
+                // Hide read-only notice
+                readOnlyNotice.classList.remove('show');
+            }
+        }
 
         // Get today's date for filtering
         function getTodayDate() {
@@ -775,12 +947,18 @@
                 .sort((a, b) => DRAWING_NUMBER_ORDER.indexOf(a) - DRAWING_NUMBER_ORDER.indexOf(b));
             
             uniqueDrawingNumbers.forEach(drawingNumber => {
-                // Create tab button
+                // Create enhanced tab button with icon
                 const tabBtn = document.createElement('button');
                 tabBtn.className = 'tab-btn';
                 tabBtn.setAttribute('data-drawing', drawingNumber);
                 tabBtn.onclick = () => showProductPage(drawingNumber);
-                tabBtn.textContent = drawingNumber;
+                
+                // Add icon and shortened text for better display
+                const icon = PRODUCT_ICONS[drawingNumber] || '📦';
+                const shortCode = drawingNumber.replace('PP4166-', '');
+                tabBtn.innerHTML = `${icon} ${shortCode}`;
+                tabBtn.title = `${drawingNumber} - ${PRODUCT_NAMES[drawingNumber] || 'Unknown Product'}`;
+                
                 tabNavigation.appendChild(tabBtn);
                 
                 // Create tab content
@@ -794,7 +972,7 @@
                 if (futureOrders.length === 0) {
                     tabContentDiv.innerHTML = `
                         <div class="product-header">
-                            <h2>${drawingNumber}</h2>
+                            <h2>${icon} ${drawingNumber}</h2>
                             <p>${productName}</p>
                         </div>
                         <div class="no-future-orders">
@@ -805,7 +983,7 @@
                 } else {
                     tabContentDiv.innerHTML = `
                         <div class="product-header">
-                            <h2>${drawingNumber}</h2>
+                            <h2>${icon} ${drawingNumber}</h2>
                             <p>${productName}</p>
                         </div>
                         
@@ -840,7 +1018,7 @@
             const file = e.target.files[0];
             const importBtn = document.getElementById('importBtn');
             
-            if (file) {
+            if (file && userPermissions.canEdit) {
                 importBtn.disabled = false;
                 importBtn.textContent = `📤 Import ${file.name}`;
                 showMessage(`File selected: ${file.name}`, 'success');
@@ -851,6 +1029,11 @@
         });
 
         async function importData() {
+            if (!userPermissions.canEdit) {
+                showMessage('You do not have permission to import data', 'error');
+                return;
+            }
+
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
             
@@ -884,7 +1067,11 @@
                     showMessage(result.error || 'Import failed', 'error');
                 }
             } catch (error) {
-                showMessage('Import failed: ' + error.message, 'error');
+                if (error.message.includes('403')) {
+                    showMessage('You do not have permission to import data', 'error');
+                } else {
+                    showMessage('Import failed: ' + error.message, 'error');
+                }
             } finally {
                 showLoading(false);
             }
@@ -932,23 +1119,30 @@
             recordCount.textContent = `${ediData.length} records`;
 
             if (ediData.length === 0) {
+                const emptyMessage = userPermissions.canEdit ? 
+                    'Import an EDI file to get started.' : 
+                    'No EDI data available. Contact admin to import data.';
+                
+                const steps = userPermissions.canEdit ? `
+                    <div class="steps">
+                        <h4>Get started in 2 simple steps:</h4>
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <span>Click "📁 Choose EDI File" to upload your data</span>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <span>Click "Import WebEDI Data" to load orders</span>
+                        </div>
+                    </div>
+                ` : '';
+
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">📊</div>
                         <h3>No EDI Data Loaded</h3>
-                        <p>Import an EDI file to get started.</p>
-                        
-                        <div class="steps">
-                            <h4>Get started in 2 simple steps:</h4>
-                            <div class="step">
-                                <div class="step-number">1</div>
-                                <span>Click "📁 Choose EDI File" to upload your data</span>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">2</div>
-                                <span>Click "Import WebEDI Data" to load orders</span>
-                            </div>
-                        </div>
+                        <p>${emptyMessage}</p>
+                        ${steps}
                     </div>
                 `;
                 return;
@@ -979,8 +1173,9 @@
                                         <input type="text" class="status-input" 
                                                value="${order.status || ''}" 
                                                data-order-id="${order.id}"
-                                               placeholder="Add comments...">
-                                        <button class="save-btn" onclick="saveStatus(${order.id})">Save</button>
+                                               placeholder="${userPermissions.canEdit ? 'Add comments...' : 'Read only'}"
+                                               ${!userPermissions.canEdit ? 'disabled' : ''}>
+                                        ${userPermissions.canEdit ? `<button class="save-btn" onclick="saveStatus(${order.id})">Save</button>` : ''}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -993,6 +1188,11 @@
         }
 
         async function saveStatus(orderId) {
+            if (!userPermissions.canEdit) {
+                showMessage('You do not have permission to save changes', 'error');
+                return;
+            }
+
             const input = document.querySelector(`[data-order-id="${orderId}"]`);
             const status = input.value;
 
@@ -1019,12 +1219,21 @@
                     showMessage(result.error || 'Failed to update status', 'error');
                 }
             } catch (error) {
-                showMessage('Failed to save status: ' + error.message, 'error');
+                if (error.message.includes('403')) {
+                    showMessage('You do not have permission to save changes', 'error');
+                } else {
+                    showMessage('Failed to save status: ' + error.message, 'error');
+                }
             }
         }
 
         async function saveAllChanges() {
-            const inputs = document.querySelectorAll('.status-input');
+            if (!userPermissions.canEdit) {
+                showMessage('You do not have permission to save changes', 'error');
+                return;
+            }
+
+            const inputs = document.querySelectorAll('.status-input:not(:disabled)');
             let updated = 0;
             let errors = 0;
 
@@ -1093,9 +1302,10 @@
             }
         }
 
-        // Load data when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadUserInfo();
+            await loadData();
         });
 
         // Auto-refresh data every 5 minutes

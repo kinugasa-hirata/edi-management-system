@@ -67,13 +67,13 @@ const upload = multer({
 
 // Drawing Number priority order
 const DRAWING_NUMBER_ORDER = [
-  'PP4166-4681P003',
-  'PP4166-4681P004', 
-  'PP4166-4726P003',
-  'PP4166-4726P004',
-  'PP4166-4731P002',
-  'PP4166-7106P001',
-  'PP4166-7106P003'
+  'PP4166-4681P003', // Product name: ｱｯﾊﾟﾌﾚｰﾑ
+  'PP4166-4681P004', // Product name: ｱｯﾊﾟﾌﾚｰﾑ
+  'PP4166-4726P003', // Product name: ﾄｯﾌﾟﾌﾟﾚｰﾄ
+  'PP4166-4726P004', // Product name: ﾄｯﾌﾟﾌﾟﾚｰﾄ
+  'PP4166-4731P002', // Product name: ﾐﾄﾞﾙﾌﾚｰﾑ
+  'PP4166-7106P001', // Product name: ﾐﾄﾞﾙﾌﾚｰﾑ
+  'PP4166-7106P003' // Product name: ﾐﾄﾞﾙﾌﾚｰﾑ
 ];
 
 // Enhanced authentication middleware
@@ -86,6 +86,22 @@ function enhancedRequireAuth(req, res, next) {
   } else {
     console.log('❌ Authentication failed');
     res.status(401).json({ error: 'Authentication required', redirect: '/' });
+  }
+}
+
+// New middleware for admin-only operations
+function requireAdminAuth(req, res, next) {
+  console.log('🔐 Admin auth check - User:', req.session?.user);
+  
+  if (req.session && req.session.user && req.session.user.role === 'admin') {
+    console.log('✅ Admin authentication successful');
+    next();
+  } else {
+    console.log('❌ Admin authentication failed');
+    res.status(403).json({ 
+      error: 'Admin access required', 
+      message: 'You need admin privileges to perform this action' 
+    });
   }
 }
 
@@ -330,28 +346,68 @@ app.get('/dashboard', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// Login endpoint
+// Updated login endpoint with role-based authentication
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body;
     console.log('🔑 Login attempt:', { username });
     
     const adminPattern = /^admin\d{4}$/;
+    const userPattern = /^user\d{4}$/;
+    
+    let userRole = null;
     
     if (adminPattern.test(username)) {
-      req.session.user = { username, loginTime: new Date().toISOString() };
-      console.log('✅ Login successful for:', username);
-      res.json({ success: true, message: 'Login successful' });
+      userRole = 'admin';
+    } else if (userPattern.test(username)) {
+      userRole = 'user';
+    }
+    
+    if (userRole) {
+      req.session.user = { 
+        username, 
+        role: userRole,
+        loginTime: new Date().toISOString() 
+      };
+      console.log('✅ Login successful for:', username, 'Role:', userRole);
+      res.json({ 
+        success: true, 
+        message: 'Login successful',
+        role: userRole,
+        permissions: {
+          canEdit: userRole === 'admin',
+          canView: true
+        }
+      });
     } else {
       console.log('❌ Login failed for:', username);
       res.status(401).json({ 
         success: false, 
-        message: 'Invalid credentials. Username must be "admin" + 4 digits' 
+        message: 'Invalid credentials. Username must be "admin" or "user" followed by 4 digits' 
       });
     }
   } catch (error) {
     console.error('❌ Login error:', error);
     res.status(500).json({ success: false, message: 'Login failed' });
+  }
+});
+
+// New user info endpoint
+app.get('/api/user-info', enhancedRequireAuth, (req, res) => {
+  try {
+    const user = req.session.user;
+    res.json({
+      username: user.username,
+      role: user.role,
+      loginTime: user.loginTime,
+      permissions: {
+        canEdit: user.role === 'admin',
+        canView: true
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error getting user info:', error);
+    res.status(500).json({ error: 'Failed to get user info' });
   }
 });
 
@@ -380,8 +436,8 @@ app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   }
 });
 
-// Update status for an order
-app.put('/api/edi-data/:orderId', enhancedRequireAuth, async (req, res) => {
+// Update status for an order (admin only)
+app.put('/api/edi-data/:orderId', requireAdminAuth, async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;
@@ -399,8 +455,8 @@ app.put('/api/edi-data/:orderId', enhancedRequireAuth, async (req, res) => {
   }
 });
 
-// Import EDI data from file (using memory storage for serverless)
-app.post('/api/import-edi', enhancedRequireAuth, upload.single('ediFile'), async (req, res) => {
+// Import EDI data from file (admin only, using memory storage for serverless)
+app.post('/api/import-edi', requireAdminAuth, upload.single('ediFile'), async (req, res) => {
   console.log('📁 Import EDI file called');
   
   try {
