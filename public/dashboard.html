@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDI Management Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .file-input-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-input-label {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            display: inline-block;
+        }
+
+        .file-input-label:hover {
+            background: #5a6fd8;
+        }
+
+        .import-btn, .save-all-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+        }
+
+        .import-btn:hover {
+            background: #229954;
+        }
+
+        .save-all-btn {
+            background: #e67e22;
+        }
+
+        .save-all-btn:hover {
+            background: #d35400;
+        }
+
+        .import-btn:disabled, .save-all-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .status-message {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-left: auto;
+            min-width: 200px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .data-table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 2px solid #e9ecef;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .status-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .save-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 5px;
+            transition: background 0.3s ease;
+        }
+
+        .save-btn:hover {
+            background: #218838;
+        }
+
+        .save-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .drawing-number {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .order-number {
+            font-family: 'Courier New', monospace;
+            color: #6c757d;
+        }
+
+        .quantity {
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .delivery-date {
+            font-family: 'Courier New', monospace;
+            color: #495057;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .status-message {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+            
+            .data-table {
+                font-size: 14px;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">📊 EDI Management System</div>
+            <div class="user-info">
+                <span id="username">Loading...</span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="file-input-container">
+                <input type="file" id="ediFile" class="file-input" accept=".csv,.tsv,.txt,.EDIdat" />
+                <label for="ediFile" class="file-input-label">
+                    📁 Choose EDI File
+                </label>
+            </div>
+            
+            <button class="import-btn" id="importBtn" onclick="importEDI()" disabled>
+                Import WebEDI Data
+            </button>
+            
+            <button class="save-all-btn" id="saveAllBtn" onclick="saveAllChanges()">
+                💾 Save All Changes
+            </button>
+            
+            <div class="status-message" id="statusMessage" style="display: none;"></div>
+        </div>
+
+        <div class="data-table-container">
+            <div class="table-header">
+                EDI Orders Data
+                <span id="recordCount" style="float: right; color: #6c757d; font-weight: normal;"></span>
+            </div>
+            
+            <div id="tableContainer">
+                <div class="empty-state">
+                    <h3>No EDI data loaded</h3>
+                    <p>Import an EDI file to get started</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = [];
+        let hasUnsavedChanges = false;
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEDIData();
+            setupFileInput();
+        });
+
+        // Setup file input handler
+        function setupFileInput() {
+            document.getElementById('ediFile').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                const importBtn = document.getElementById('importBtn');
+                
+                if (file) {
+                    importBtn.disabled = false;
+                    showStatus(`File selected: ${file.name}`, 'info');
+                } else {
+                    importBtn.disabled = true;
+                }
+            });
+        }
+
+        // Load EDI data from server
+        async function loadEDIData() {
+            try {
+                const response = await fetch('/api/edi-data');
+                if (response.status === 401) {
+                    window.location.href = '/';
+                    return;
+                }
+                
+                const data = await response.json();
+                currentData = data;
+                renderTable(data);
+                updateRecordCount(data.length);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showStatus('Error loading EDI data', 'error');
+            }
+        }
+
+        // Render the data table
+        function renderTable(data) {
+            const container = document.getElementById('tableContainer');
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No EDI data loaded</h3>
+                        <p>Import an EDI file to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const table = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>注文番号<br><small>Order Number</small></th>
+                            <th>注文数量<br><small>Quantity</small></th>
+                            <th>品名<br><small>Product Name</small></th>
+                            <th>図番<br><small>Drawing Number</small></th>
+                            <th>納期<br><small>Delivery Date</small></th>
+                            <th style="width: 300px;">Status / Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => `
+                            <tr>
+                                <td class="order-number">${row.order_number}</td>
+                                <td class="quantity">${row.quantity}</td>
+                                <td>${row.product_name || ''}</td>
+                                <td class="drawing-number">${row.drawing_number}</td>
+                                <td class="delivery-date">${row.delivery_date}</td>
+                                <td>
+                                    <textarea 
+                                        class="status-input" 
+                                        data-order-id="${row.id}"
+                                        placeholder="Add status or comments..."
+                                        onchange="markAsChanged(this)"
+                                    >${row.status || ''}</textarea>
+                                    <button 
+                                        class="save-btn" 
+                                        onclick="saveStatus(${row.id}, this.previousElementSibling)"
+                                    >
+                                        Save
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = table;
+        }
+
+        // Mark textarea as changed
+        function markAsChanged(textarea) {
+            textarea.style.borderColor = '#ffc107';
+            hasUnsavedChanges = true;
+            document.getElementById('saveAllBtn').style.background = '#e67e22';
+        }
+
+        // Save individual status
+        async function saveStatus(orderId, textarea) {
+            const button = textarea.nextElementSibling;
+            const originalText = button.textContent;
+            
+            try {
+                button.disabled = true;
+                button.innerHTML = '<span class="loading-spinner"></span>Saving...';
+                
+                const response = await fetch(`/api/edi-data/${orderId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        status: textarea.value
+                    }),
+                });
+                
+                if (response.ok) {
+                    textarea.style.borderColor = '#28a745';
+                    button.textContent = 'Saved!';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        textarea.style.borderColor = '#ddd';
+                    }, 2000);
+                } else {
+                    throw new Error('Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving status:', error);
+                textarea.style.borderColor = '#dc3545';
+                button.textContent = 'Error!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        // Save all changes
+        async function saveAllChanges() {
+            const textareas = document.querySelectorAll('.status-input');
+            let saveCount = 0;
+            
+            for (const textarea of textareas) {
+                if (textarea.style.borderColor === 'rgb(255, 193, 7)') { // Changed items
+                    const orderId = textarea.dataset.orderId;
+                    try {
+                        await fetch(`/api/edi-data/${orderId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                status: textarea.value
+                            }),
+                        });
+                        textarea.style.borderColor = '#ddd';
+                        saveCount++;
+                    } catch (error) {
+                        console.error('Error saving status for order:', orderId, error);
+                    }
+                }
+            }
+            
+            if (saveCount > 0) {
+                showStatus(`${saveCount} status updates saved successfully`, 'success');
+                hasUnsavedChanges = false;
+                document.getElementById('saveAllBtn').style.background = '#6c757d';
+            } else {
+                showStatus('No changes to save', 'info');
+            }
+        }
+
+        // Import EDI data
+        async function importEDI() {
+            const fileInput = document.getElementById('ediFile');
+            const importBtn = document.getElementById('importBtn');
+            
+            if (!fileInput.files[0]) {
+                showStatus('Please select a file first', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('ediFile', fileInput.files[0]);
+            
+            try {
+                importBtn.disabled = true;
+                importBtn.innerHTML = '<span class="loading-spinner"></span>Importing...';
+                showStatus('Importing EDI data...', 'info');
+                
+                const response = await fetch('/api/import-edi', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(result.message, 'success');
+                    loadEDIData(); // Refresh the table
+                    fileInput.value = ''; // Clear file input
+                } else {
+                    showStatus(result.error || 'Import failed', 'error');
+                }
+            } catch (error) {
+                console.error('Import error:', error);
+                showStatus('Import failed. Please try again.', 'error');
+            } finally {
+                importBtn.disabled = true;
+                importBtn.textContent = 'Import WebEDI Data';
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = `status-message status-${type}`;
+            statusElement.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update record count
+        function updateRecordCount(count) {
+            document.getElementById('recordCount').textContent = `${count} records`;
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/';
+            }
+        }
+
+        // Warn about unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
