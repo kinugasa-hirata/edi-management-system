@@ -95,12 +95,12 @@
             background: #047857;
         }
 
-        .btn-warning {
+        .btn-test {
             background: #f59e0b;
             color: white;
         }
 
-        .btn-warning:hover {
+        .btn-test:hover {
             background: #d97706;
         }
 
@@ -154,7 +154,6 @@
 
         .debug-item {
             margin-bottom: 5px;
-            padding: 2px 0;
         }
 
         .empty-state {
@@ -185,7 +184,7 @@
             padding: 30px;
             margin: 20px 0;
             text-align: left;
-            max-width: 500px;
+            max-width: 600px;
             margin-left: auto;
             margin-right: auto;
         }
@@ -353,11 +352,14 @@
             <button class="btn btn-secondary" id="importBtn" onclick="importData()" disabled>
                 📤 Import WebEDI Data
             </button>
+            <button class="btn btn-test" onclick="addTestData()">
+                🧪 Add Test Data
+            </button>
+            <button class="btn btn-secondary" onclick="fixEncoding()" style="background: #f59e0b;">
+                🔧 Fix Japanese Text
+            </button>
             <button class="btn btn-success" onclick="saveAllChanges()">
                 💾 Save All Changes
-            </button>
-            <button class="btn btn-warning" onclick="addTestData()">
-                🧪 Add Test Data
             </button>
             <button class="btn btn-logout" onclick="logout()">
                 🚪 Logout
@@ -388,10 +390,10 @@
                     <p>Welcome to the EDI Management System!</p>
                     
                     <div class="steps">
-                        <h4>Get started in 3 simple steps:</h4>
+                        <h4>Get started in 3 simple ways:</h4>
                         <div class="step">
                             <div class="step-number">1</div>
-                            <span>Click "🧪 Add Test Data" for quick testing</span>
+                            <span>Click "🧪 Add Test Data" to try with sample data</span>
                         </div>
                         <div class="step">
                             <div class="step-number">2</div>
@@ -399,7 +401,7 @@
                         </div>
                         <div class="step">
                             <div class="step-number">3</div>
-                            <span>Edit status and save changes</span>
+                            <span>Then click "Import WebEDI Data" to load orders</span>
                         </div>
                     </div>
                 </div>
@@ -448,6 +450,35 @@
             // Keep only last 15 debug messages
             while (debugContent.children.length > 15) {
                 debugContent.removeChild(debugContent.firstChild);
+            }
+        }
+
+        async function fixEncoding() {
+            try {
+                updateDebugInfo('Fixing Japanese text encoding...');
+                showLoading(true);
+                
+                const response = await fetch('/api/fix-encoding', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                updateDebugInfo(`Fix encoding result: ${JSON.stringify(result)}`);
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    await loadData(); // Reload data to show the fixed text
+                } else {
+                    showMessage(result.error || 'Failed to fix encoding', 'error');
+                }
+            } catch (error) {
+                updateDebugInfo(`Fix encoding error: ${error.message}`);
+                showMessage('Failed to fix encoding: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
             }
         }
 
@@ -517,7 +548,7 @@
                 } else {
                     showMessage(result.error || 'Import failed', 'error');
                     if (result.debug) {
-                        updateDebugInfo(`Import debug info: ${JSON.stringify(result.debug)}`);
+                        updateDebugInfo(`Debug info: ${JSON.stringify(result.debug)}`);
                     }
                 }
             } catch (error) {
@@ -576,13 +607,13 @@
                     <div class="empty-state">
                         <div class="icon">📊</div>
                         <h3>No EDI Data Loaded</h3>
-                        <p>Click "🧪 Add Test Data" to get started or upload an EDI file.</p>
+                        <p>Click "🧪 Add Test Data" to try with sample data, or import an EDI file to get started.</p>
                         
                         <div class="steps">
-                            <h4>Get started in 3 simple steps:</h4>
+                            <h4>Get started in 3 simple ways:</h4>
                             <div class="step">
                                 <div class="step-number">1</div>
-                                <span>Click "🧪 Add Test Data" for quick testing</span>
+                                <span>Click "🧪 Add Test Data" to try with sample data</span>
                             </div>
                             <div class="step">
                                 <div class="step-number">2</div>
@@ -590,7 +621,7 @@
                             </div>
                             <div class="step">
                                 <div class="step-number">3</div>
-                                <span>Edit status and save changes</span>
+                                <span>Then click "Import WebEDI Data" to load orders</span>
                             </div>
                         </div>
                     </div>
@@ -604,9 +635,9 @@
                         <thead>
                             <tr>
                                 <th>注文番号<br><small>Order Number</small></th>
-                                <th>注文数量<br><small>Quantity</small></th>
-                                <th>品名<br><small>Product Name</small></th>
                                 <th>図番<br><small>Drawing Number</small></th>
+                                <th>品名<br><small>Product Name</small></th>
+                                <th>注文数量<br><small>Quantity</small></th>
                                 <th>納期<br><small>Delivery Date</small></th>
                                 <th>Status<br><small>Comments</small></th>
                             </tr>
@@ -615,9 +646,9 @@
                             ${ediData.map(order => `
                                 <tr>
                                     <td><strong>${order.order_number || ''}</strong></td>
-                                    <td>${order.quantity || ''}</td>
-                                    <td>${order.product_name || ''}</td>
                                     <td><strong>${order.drawing_number || ''}</strong></td>
+                                    <td>${order.product_name || ''}</td>
+                                    <td>${order.quantity || ''}</td>
                                     <td>${order.delivery_date || ''}</td>
                                     <td>
                                         <input type="text" class="status-input" 

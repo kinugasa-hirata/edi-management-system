@@ -12,12 +12,12 @@
       "dest": "/server.js"
     }
   ],
-  "env": {
-    "SESSION_SECRET": "@session-secret"
-  },
   "functions": {
     "server.js": {
       "maxDuration": 30
     }
+  },
+  "env": {
+    "NODE_ENV": "production"
   }
 }
