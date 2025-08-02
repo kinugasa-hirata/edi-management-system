@@ -281,6 +281,15 @@
             fill: #6b7280;
         }
 
+        .no-data-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
         .no-future-orders {
             text-align: center;
             padding: 40px;
@@ -574,8 +583,20 @@
                 Loading data...
             </div>
 
+            <!-- Always Visible Tab Navigation -->
+            <div class="tab-navigation" id="tabNavigation">
+                <button class="tab-btn active" onclick="showMainDashboard()">📊 All Orders</button>
+                <button class="tab-btn" data-drawing="PP4166-4681P003" onclick="showProductPage('PP4166-4681P003')">🔧 4681P003</button>
+                <button class="tab-btn" data-drawing="PP4166-4681P004" onclick="showProductPage('PP4166-4681P004')">🔧 4681P004</button>
+                <button class="tab-btn" data-drawing="PP4166-4726P003" onclick="showProductPage('PP4166-4726P003')">⚙️ 4726P003</button>
+                <button class="tab-btn" data-drawing="PP4166-4726P004" onclick="showProductPage('PP4166-4726P004')">⚙️ 4726P004</button>
+                <button class="tab-btn" data-drawing="PP4166-4731P002" onclick="showProductPage('PP4166-4731P002')">🔩 4731P002</button>
+                <button class="tab-btn" data-drawing="PP4166-7106P001" onclick="showProductPage('PP4166-7106P001')">🔩 7106P001</button>
+                <button class="tab-btn" data-drawing="PP4166-7106P003" onclick="showProductPage('PP4166-7106P003')">🔩 7106P003</button>
+            </div>
+
             <!-- Main Dashboard Tab -->
-            <div id="mainDashboard">
+            <div id="mainDashboard" class="tab-content active">
                 <div class="data-header">
                     <h2>EDI Orders Data</h2>
                     <span class="record-count" id="recordCount">0 records</span>
@@ -602,14 +623,237 @@
                 </div>
             </div>
 
-            <!-- Product Tabs -->
-            <div id="productTabs" style="display: none;">
-                <div class="tab-navigation" id="tabNavigation">
-                    <button class="tab-btn active" onclick="showMainDashboard()">📊 All Orders</button>
+            <!-- Product Tabs Content -->
+            <div id="tabContent">
+                <!-- PP4166-4681P003 -->
+                <div class="tab-content" id="tab-PP4166-4681P003">
+                    <div class="product-header">
+                        <h2>🔧 PP4166-4681P003</h2>
+                        <p>ｱｯﾊﾟﾌﾚｰﾑ</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-quantity-PP4166-4681P003">0</div>
+                            <div class="stat-label">Total Quantity</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-orders-PP4166-4681P003">0</div>
+                            <div class="stat-label">Future Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="next-delivery-PP4166-4681P003">-</div>
+                            <div class="stat-label">Next Delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Delivery Schedule</div>
+                        <div class="chart-wrapper" id="chart-PP4166-4681P003">
+                            <div class="no-data-state" id="no-data-PP4166-4681P003">
+                                <h3>📅 No Data Available</h3>
+                                <p>Import EDI data to see delivery schedule for this product.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="tabContent">
-                    <!-- Product pages will be generated here -->
+                <!-- PP4166-4681P004 -->
+                <div class="tab-content" id="tab-PP4166-4681P004">
+                    <div class="product-header">
+                        <h2>🔧 PP4166-4681P004</h2>
+                        <p>ｱｯﾊﾟﾌﾚｰﾑ</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-quantity-PP4166-4681P004">0</div>
+                            <div class="stat-label">Total Quantity</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-orders-PP4166-4681P004">0</div>
+                            <div class="stat-label">Future Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="next-delivery-PP4166-4681P004">-</div>
+                            <div class="stat-label">Next Delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Delivery Schedule</div>
+                        <div class="chart-wrapper" id="chart-PP4166-4681P004">
+                            <div class="no-data-state" id="no-data-PP4166-4681P004">
+                                <h3>📅 No Data Available</h3>
+                                <p>Import EDI data to see delivery schedule for this product.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PP4166-4726P003 -->
+                <div class="tab-content" id="tab-PP4166-4726P003">
+                    <div class="product-header">
+                        <h2>⚙️ PP4166-4726P003</h2>
+                        <p>ﾄｯﾌﾟﾌﾟﾚｰﾄ</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-quantity-PP4166-4726P003">0</div>
+                            <div class="stat-label">Total Quantity</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-orders-PP4166-4726P003">0</div>
+                            <div class="stat-label">Future Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="next-delivery-PP4166-4726P003">-</div>
+                            <div class="stat-label">Next Delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Delivery Schedule</div>
+                        <div class="chart-wrapper" id="chart-PP4166-4726P003">
+                            <div class="no-data-state" id="no-data-PP4166-4726P003">
+                                <h3>📅 No Data Available</h3>
+                                <p>Import EDI data to see delivery schedule for this product.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PP4166-4726P004 -->
+                <div class="tab-content" id="tab-PP4166-4726P004">
+                    <div class="product-header">
+                        <h2>⚙️ PP4166-4726P004</h2>
+                        <p>ﾄｯﾌﾟﾌﾟﾚｰﾄ</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-quantity-PP4166-4726P004">0</div>
+                            <div class="stat-label">Total Quantity</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-orders-PP4166-4726P004">0</div>
+                            <div class="stat-label">Future Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="next-delivery-PP4166-4726P004">-</div>
+                            <div class="stat-label">Next Delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Delivery Schedule</div>
+                        <div class="chart-wrapper" id="chart-PP4166-4726P004">
+                            <div class="no-data-state" id="no-data-PP4166-4726P004">
+                                <h3>📅 No Data Available</h3>
+                                <p>Import EDI data to see delivery schedule for this product.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PP4166-4731P002 -->
+                <div class="tab-content" id="tab-PP4166-4731P002">
+                    <div class="product-header">
+                        <h2>🔩 PP4166-4731P002</h2>
+                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-quantity-PP4166-4731P002">0</div>
+                            <div class="stat-label">Total Quantity</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-orders-PP4166-4731P002">0</div>
+                            <div class="stat-label">Future Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="next-delivery-PP4166-4731P002">-</div>
+                            <div class="stat-label">Next Delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Delivery Schedule</div>
+                        <div class="chart-wrapper" id="chart-PP4166-4731P002">
+                            <div class="no-data-state" id="no-data-PP4166-4731P002">
+                                <h3>📅 No Data Available</h3>
+                                <p>Import EDI data to see delivery schedule for this product.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PP4166-7106P001 -->
+                <div class="tab-content" id="tab-PP4166-7106P001">
+                    <div class="product-header">
+                        <h2>🔩 PP4166-7106P001</h2>
+                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-quantity-PP4166-7106P001">0</div>
+                            <div class="stat-label">Total Quantity</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-orders-PP4166-7106P001">0</div>
+                            <div class="stat-label">Future Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="next-delivery-PP4166-7106P001">-</div>
+                            <div class="stat-label">Next Delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Delivery Schedule</div>
+                        <div class="chart-wrapper" id="chart-PP4166-7106P001">
+                            <div class="no-data-state" id="no-data-PP4166-7106P001">
+                                <h3>📅 No Data Available</h3>
+                                <p>Import EDI data to see delivery schedule for this product.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PP4166-7106P003 -->
+                <div class="tab-content" id="tab-PP4166-7106P003">
+                    <div class="product-header">
+                        <h2>🔩 PP4166-7106P003</h2>
+                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-quantity-PP4166-7106P003">0</div>
+                            <div class="stat-label">Total Quantity</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="total-orders-PP4166-7106P003">0</div>
+                            <div class="stat-label">Future Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="next-delivery-PP4166-7106P003">-</div>
+                            <div class="stat-label">Next Delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Delivery Schedule</div>
+                        <div class="chart-wrapper" id="chart-PP4166-7106P003">
+                            <div class="no-data-state" id="no-data-PP4166-7106P003">
+                                <h3>📅 No Data Available</h3>
+                                <p>Import EDI data to see delivery schedule for this product.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -781,7 +1025,17 @@
         // Create bar chart
         function createBarChart(containerId, data, drawingNumber) {
             const container = document.getElementById(containerId);
-            if (!container || data.length === 0) return;
+            if (!container) return;
+            
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="no-data-state">
+                        <h3>📅 No Future Orders</h3>
+                        <p>There are no orders with delivery dates from today onwards for this product.</p>
+                    </div>
+                `;
+                return;
+            }
             
             const width = container.clientWidth - 50;
             const height = 350;
@@ -887,8 +1141,12 @@
         // Show main dashboard
         function showMainDashboard() {
             currentView = 'main';
-            document.getElementById('mainDashboard').style.display = 'block';
-            document.getElementById('productTabs').style.display = 'none';
+            
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Show main dashboard
+            document.getElementById('mainDashboard').classList.add('active');
             
             // Update tab buttons
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -898,16 +1156,16 @@
         // Show product page
         function showProductPage(drawingNumber) {
             currentView = drawingNumber;
-            document.getElementById('mainDashboard').style.display = 'none';
-            document.getElementById('productTabs').style.display = 'block';
+            
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Show specific tab content
+            document.getElementById(`tab-${drawingNumber}`).classList.add('active');
             
             // Update tab buttons
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelector(`[data-drawing="${drawingNumber}"]`).classList.add('active');
-            
-            // Show specific tab content
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(`tab-${drawingNumber}`).classList.add('active');
             
             // Generate chart for this product
             generateProductChart(drawingNumber);
@@ -931,85 +1189,10 @@
             document.getElementById(`next-delivery-${drawingNumber}`).textContent = nextDelivery;
         }
 
-        // Create product tabs
-        function createProductTabs() {
-            const tabNavigation = document.getElementById('tabNavigation');
-            const tabContent = document.getElementById('tabContent');
-            
-            // Clear existing tabs (except "All Orders")
-            const existingTabs = tabNavigation.querySelectorAll('.tab-btn:not(:first-child)');
-            existingTabs.forEach(tab => tab.remove());
-            tabContent.innerHTML = '';
-            
-            // Get unique drawing numbers from data
-            const uniqueDrawingNumbers = [...new Set(ediData.map(order => order.drawing_number))]
-                .filter(dn => DRAWING_NUMBER_ORDER.includes(dn))
-                .sort((a, b) => DRAWING_NUMBER_ORDER.indexOf(a) - DRAWING_NUMBER_ORDER.indexOf(b));
-            
-            uniqueDrawingNumbers.forEach(drawingNumber => {
-                // Create enhanced tab button with icon
-                const tabBtn = document.createElement('button');
-                tabBtn.className = 'tab-btn';
-                tabBtn.setAttribute('data-drawing', drawingNumber);
-                tabBtn.onclick = () => showProductPage(drawingNumber);
-                
-                // Add icon and shortened text for better display
-                const icon = PRODUCT_ICONS[drawingNumber] || '📦';
-                const shortCode = drawingNumber.replace('PP4166-', '');
-                tabBtn.innerHTML = `${icon} ${shortCode}`;
-                tabBtn.title = `${drawingNumber} - ${PRODUCT_NAMES[drawingNumber] || 'Unknown Product'}`;
-                
-                tabNavigation.appendChild(tabBtn);
-                
-                // Create tab content
-                const productName = PRODUCT_NAMES[drawingNumber] || 'Unknown Product';
-                const futureOrders = getFutureOrders(ediData.filter(order => order.drawing_number === drawingNumber));
-                
-                const tabContentDiv = document.createElement('div');
-                tabContentDiv.className = 'tab-content';
-                tabContentDiv.id = `tab-${drawingNumber}`;
-                
-                if (futureOrders.length === 0) {
-                    tabContentDiv.innerHTML = `
-                        <div class="product-header">
-                            <h2>${icon} ${drawingNumber}</h2>
-                            <p>${productName}</p>
-                        </div>
-                        <div class="no-future-orders">
-                            <h3>📅 No Future Orders</h3>
-                            <p>There are no orders with delivery dates from today onwards for this product.</p>
-                        </div>
-                    `;
-                } else {
-                    tabContentDiv.innerHTML = `
-                        <div class="product-header">
-                            <h2>${icon} ${drawingNumber}</h2>
-                            <p>${productName}</p>
-                        </div>
-                        
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-number" id="total-quantity-${drawingNumber}">0</div>
-                                <div class="stat-label">Total Quantity</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-number" id="total-orders-${drawingNumber}">0</div>
-                                <div class="stat-label">Future Orders</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-number" id="next-delivery-${drawingNumber}">-</div>
-                                <div class="stat-label">Next Delivery</div>
-                            </div>
-                        </div>
-                        
-                        <div class="chart-container">
-                            <div class="chart-title">📊 Delivery Schedule</div>
-                            <div class="chart-wrapper" id="chart-${drawingNumber}"></div>
-                        </div>
-                    `;
-                }
-                
-                tabContent.appendChild(tabContentDiv);
+        // Update all product charts when data changes
+        function updateAllProductCharts() {
+            DRAWING_NUMBER_ORDER.forEach(drawingNumber => {
+                generateProductChart(drawingNumber);
             });
         }
 
@@ -1099,10 +1282,8 @@
                 ediData = data;
                 renderTable();
                 
-                // Create product tabs if we have data
-                if (data.length > 0) {
-                    createProductTabs();
-                }
+                // Update all product charts when data is loaded
+                updateAllProductCharts();
                 
             } catch (error) {
                 showMessage('Failed to load data: ' + error.message, 'error');
