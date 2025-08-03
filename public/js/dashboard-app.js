@@ -359,7 +359,52 @@ class EDIDashboard {
         this.updateAllProductCharts();
     }
 
-    // ============ CHART METHODS ============
+    // ============ EXCEL EXPORT FUNCTIONALITY ============
+    async exportToExcel() {
+        try {
+            console.log('📊 Starting Excel export...');
+            this.showMessage('Preparing Excel export...', 'info');
+            
+            const response = await fetch('/api/export/excel', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Export failed: ${response.status}`);
+            }
+            
+            // Get the blob from response
+            const blob = await response.blob();
+            
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Generate filename with current date
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+            a.download = `EDI_Orders_${dateStr}.xlsx`;
+            
+            // Trigger download
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            this.showMessage('Excel file downloaded successfully!', 'success');
+            console.log('✅ Excel export completed');
+            
+        } catch (error) {
+            console.error('❌ Excel export error:', error);
+            this.showMessage('Failed to export Excel file: ' + error.message, 'error');
+        }
+    }
+
+    // ============ ENHANCED CHART METHODS ============
     parseDate(dateString) {
         if (!dateString) return null;
         try {
@@ -434,15 +479,22 @@ class EDIDashboard {
         }
     }
 
+    // 🔧 ENHANCED - Create bar chart with chronologically sorted forecast and order data
     createBarChart(containerId, data, drawingNumber) {
         const container = document.getElementById(containerId);
         if (!container) return;
         
-        if (data.length === 0) {
+        // Get forecast data for this drawing number
+        const forecastBars = this.getForecastBarsForChart(drawingNumber, data);
+        
+        // 🔧 ENHANCED: Merge and sort forecast and order data chronologically
+        const combinedData = this.mergeForecastAndOrderData(data, forecastBars);
+        
+        if (combinedData.length === 0) {
             container.innerHTML = `
                 <div class="no-data-state">
-                    <h3>📅 No Future Orders</h3>
-                    <p>There are no orders with delivery dates from today onwards for this product.</p>
+                    <h3>📅 No Future Orders or Forecasts</h3>
+                    <p>There are no orders or forecasts with dates from today onwards for this product.</p>
                 </div>
             `;
             return;
@@ -460,16 +512,11 @@ class EDIDashboard {
         svg.setAttribute('class', 'chart-svg');
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         
-        // Get forecast data for this drawing number
-        const forecastBars = this.getForecastBarsForChart(drawingNumber, data);
-        
-        // Calculate scales including forecast data
-        const maxOrderQuantity = Math.max(...data.map(d => d.quantity));
-        const maxForecastQuantity = forecastBars.length > 0 ? Math.max(...forecastBars.map(d => d.quantity)) : 0;
-        const maxQuantity = Math.max(maxOrderQuantity, maxForecastQuantity);
+        // Calculate scales
+        const maxQuantity = Math.max(...combinedData.map(d => d.quantity));
         
         // Calculate bar positioning
-        const totalBars = data.length + forecastBars.length;
+        const totalBars = combinedData.length;
         const barWidth = Math.min(60, chartWidth / totalBars * 0.8);
         const barSpacing = (chartWidth - (barWidth * totalBars)) / (totalBars + 1);
         
@@ -491,56 +538,94 @@ class EDIDashboard {
         xAxis.setAttribute('y2', height - margin.bottom);
         svg.appendChild(xAxis);
         
-        let barIndex = 0;
-        
-        // Draw actual order bars with status-based coloring
-        data.forEach((d, i) => {
+        // 🔧 ENHANCED: Draw bars in chronological order
+        combinedData.forEach((d, i) => {
             const totalBarHeight = (d.quantity / maxQuantity) * chartHeight;
-            const x = margin.left + barSpacing + (barIndex * (barWidth + barSpacing));
+            const x = margin.left + barSpacing + (i * (barWidth + barSpacing));
             const barBottom = height - margin.bottom;
             
-            // Draw multi-colored bar segments based on order status
-            let cumulativeHeight = 0;
-            d.orders.forEach((order, orderIndex) => {
-                const segmentHeight = (order.quantity / d.quantity) * totalBarHeight;
-                const segmentY = barBottom - cumulativeHeight - segmentHeight;
-                const statusColor = this.getStatusColor(order.status);
+            if (d.type === 'order') {
+                // Draw order bar with status-based coloring
+                let cumulativeHeight = 0;
+                d.orders.forEach((order, orderIndex) => {
+                    const segmentHeight = (order.quantity / d.quantity) * totalBarHeight;
+                    const segmentY = barBottom - cumulativeHeight - segmentHeight;
+                    const statusColor = this.getStatusColor(order.status);
+                    
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', x);
+                    rect.setAttribute('y', segmentY);
+                    rect.setAttribute('width', barWidth);
+                    rect.setAttribute('height', segmentHeight);
+                    rect.setAttribute('fill', statusColor);
+                    rect.setAttribute('stroke', '#ffffff');
+                    rect.setAttribute('stroke-width', '0.5');
+                    rect.setAttribute('class', 'bar-segment');
+                    
+                    const statusText = order.status ? ` (Status: "${order.status}")` : ' (No status)';
+                    const tooltipText = `${this.formatDateShort(d.date)} - ${order.orderNumber}\nQuantity: ${order.quantity}${statusText}`;
+                    rect.setAttribute('title', tooltipText);
+                    
+                    svg.appendChild(rect);
+                    
+                    if (orderIndex > 0) {
+                        const lineY = barBottom - cumulativeHeight;
+                        const dottedLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        dottedLine.setAttribute('x1', x);
+                        dottedLine.setAttribute('y1', lineY);
+                        dottedLine.setAttribute('x2', x + barWidth);
+                        dottedLine.setAttribute('y2', lineY);
+                        dottedLine.setAttribute('stroke', 'white');
+                        dottedLine.setAttribute('stroke-width', '2');
+                        dottedLine.setAttribute('stroke-dasharray', '4,2');
+                        dottedLine.setAttribute('opacity', '0.9');
+                        svg.appendChild(dottedLine);
+                    }
+                    
+                    cumulativeHeight += segmentHeight;
+                });
                 
-                // Create colored bar segment
+                // Add order count label if multiple orders
+                if (d.orders.length > 1) {
+                    const countText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    countText.setAttribute('class', 'chart-text');
+                    countText.setAttribute('x', x + barWidth / 2);
+                    countText.setAttribute('y', barBottom - totalBarHeight - 20);
+                    countText.setAttribute('text-anchor', 'middle');
+                    countText.setAttribute('font-size', '10');
+                    countText.setAttribute('fill', '#6b7280');
+                    countText.textContent = `(${d.orders.length} orders)`;
+                    svg.appendChild(countText);
+                }
+            } else {
+                // Draw forecast bar
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('x', x);
-                rect.setAttribute('y', segmentY);
+                rect.setAttribute('y', barBottom - totalBarHeight);
                 rect.setAttribute('width', barWidth);
-                rect.setAttribute('height', segmentHeight);
-                rect.setAttribute('fill', statusColor);
-                rect.setAttribute('stroke', '#ffffff');
-                rect.setAttribute('stroke-width', '0.5');
+                rect.setAttribute('height', totalBarHeight);
+                rect.setAttribute('fill', '#d1d5db');
+                rect.setAttribute('stroke', '#9ca3af');
+                rect.setAttribute('stroke-width', '1');
+                rect.setAttribute('stroke-dasharray', '3,3');
                 rect.setAttribute('class', 'bar-segment');
                 
-                // Enhanced tooltip with status information
-                const statusText = order.status ? ` (Status: "${order.status}")` : ' (No status)';
-                const tooltipText = `${this.formatDateShort(d.date)} - ${order.orderNumber}\nQuantity: ${order.quantity}${statusText}`;
+                const tooltipText = `Forecast: ${d.displayDate}\nQuantity: ${d.quantity}`;
                 rect.setAttribute('title', tooltipText);
-                
                 svg.appendChild(rect);
                 
-                // Add dotted separator line between segments (except before first segment)
-                if (orderIndex > 0) {
-                    const lineY = barBottom - cumulativeHeight;
-                    const dottedLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    dottedLine.setAttribute('x1', x);
-                    dottedLine.setAttribute('y1', lineY);
-                    dottedLine.setAttribute('x2', x + barWidth);
-                    dottedLine.setAttribute('y2', lineY);
-                    dottedLine.setAttribute('stroke', 'white');
-                    dottedLine.setAttribute('stroke-width', '2');
-                    dottedLine.setAttribute('stroke-dasharray', '4,2');
-                    dottedLine.setAttribute('opacity', '0.9');
-                    svg.appendChild(dottedLine);
-                }
-                
-                cumulativeHeight += segmentHeight;
-            });
+                // Add "F" label for forecast
+                const forecastLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                forecastLabel.setAttribute('class', 'chart-text');
+                forecastLabel.setAttribute('x', x + barWidth / 2);
+                forecastLabel.setAttribute('y', barBottom - totalBarHeight - 20);
+                forecastLabel.setAttribute('text-anchor', 'middle');
+                forecastLabel.setAttribute('font-size', '10');
+                forecastLabel.setAttribute('fill', '#6b7280');
+                forecastLabel.setAttribute('font-weight', 'bold');
+                forecastLabel.textContent = 'F';
+                svg.appendChild(forecastLabel);
+            }
             
             // Add quantity label on top of bar
             const quantityText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -550,22 +635,9 @@ class EDIDashboard {
             quantityText.setAttribute('text-anchor', 'middle');
             quantityText.setAttribute('font-weight', 'bold');
             quantityText.setAttribute('font-size', '12');
-            quantityText.setAttribute('fill', '#1f2937');
+            quantityText.setAttribute('fill', d.type === 'forecast' ? '#6b7280' : '#1f2937');
             quantityText.textContent = d.quantity;
             svg.appendChild(quantityText);
-            
-            // Add order count label if multiple orders
-            if (d.orders.length > 1) {
-                const countText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                countText.setAttribute('class', 'chart-text');
-                countText.setAttribute('x', x + barWidth / 2);
-                countText.setAttribute('y', barBottom - totalBarHeight - 20);
-                countText.setAttribute('text-anchor', 'middle');
-                countText.setAttribute('font-size', '10');
-                countText.setAttribute('fill', '#6b7280');
-                countText.textContent = `(${d.orders.length} orders)`;
-                svg.appendChild(countText);
-            }
             
             // Add date label below X-axis
             const dateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -575,95 +647,20 @@ class EDIDashboard {
             dateText.setAttribute('text-anchor', 'middle');
             dateText.setAttribute('font-size', '11');
             dateText.setAttribute('font-weight', '500');
-            dateText.textContent = this.formatDateShort(d.date);
+            dateText.setAttribute('fill', d.type === 'forecast' ? '#6b7280' : '#000000');
+            dateText.textContent = d.displayDate;
             svg.appendChild(dateText);
             
-            // Add full date on second line for clarity
-            const fullDateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            fullDateText.setAttribute('class', 'chart-label');
-            fullDateText.setAttribute('x', x + barWidth / 2);
-            fullDateText.setAttribute('y', height - margin.bottom + 40);
-            fullDateText.setAttribute('text-anchor', 'middle');
-            fullDateText.setAttribute('font-size', '9');
-            fullDateText.setAttribute('fill', '#9ca3af');
-            fullDateText.textContent = d.date.split('/')[0]; // Just the year
-            svg.appendChild(fullDateText);
-            
-            barIndex++;
-        });
-        
-        // Draw forecast bars (light grey)
-        forecastBars.forEach((d, i) => {
-            const totalBarHeight = (d.quantity / maxQuantity) * chartHeight;
-            const x = margin.left + barSpacing + (barIndex * (barWidth + barSpacing));
-            const barBottom = height - margin.bottom;
-            
-            // Create forecast bar (light grey)
-            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('x', x);
-            rect.setAttribute('y', barBottom - totalBarHeight);
-            rect.setAttribute('width', barWidth);
-            rect.setAttribute('height', totalBarHeight);
-            rect.setAttribute('fill', '#d1d5db'); // Light grey for forecast
-            rect.setAttribute('stroke', '#9ca3af');
-            rect.setAttribute('stroke-width', '1');
-            rect.setAttribute('stroke-dasharray', '3,3'); // Dashed border for forecast
-            rect.setAttribute('class', 'bar-segment');
-            
-            // Forecast tooltip
-            const tooltipText = `Forecast: ${d.displayDate}\nQuantity: ${d.quantity}`;
-            rect.setAttribute('title', tooltipText);
-            
-            svg.appendChild(rect);
-            
-            // Add quantity label on top of forecast bar
-            const quantityText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            quantityText.setAttribute('class', 'chart-text');
-            quantityText.setAttribute('x', x + barWidth / 2);
-            quantityText.setAttribute('y', barBottom - totalBarHeight - 5);
-            quantityText.setAttribute('text-anchor', 'middle');
-            quantityText.setAttribute('font-weight', 'bold');
-            quantityText.setAttribute('font-size', '12');
-            quantityText.setAttribute('fill', '#6b7280');
-            quantityText.textContent = d.quantity;
-            svg.appendChild(quantityText);
-            
-            // Add "F" label for forecast
-            const forecastLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            forecastLabel.setAttribute('class', 'chart-text');
-            forecastLabel.setAttribute('x', x + barWidth / 2);
-            forecastLabel.setAttribute('y', barBottom - totalBarHeight - 20);
-            forecastLabel.setAttribute('text-anchor', 'middle');
-            forecastLabel.setAttribute('font-size', '10');
-            forecastLabel.setAttribute('fill', '#6b7280');
-            forecastLabel.setAttribute('font-weight', 'bold');
-            forecastLabel.textContent = 'F';
-            svg.appendChild(forecastLabel);
-            
-            // Add month label below X-axis
-            const monthText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            monthText.setAttribute('class', 'chart-label');
-            monthText.setAttribute('x', x + barWidth / 2);
-            monthText.setAttribute('y', height - margin.bottom + 25);
-            monthText.setAttribute('text-anchor', 'middle');
-            monthText.setAttribute('font-size', '11');
-            monthText.setAttribute('font-weight', '500');
-            monthText.setAttribute('fill', '#6b7280');
-            monthText.textContent = d.displayDate;
-            svg.appendChild(monthText);
-            
-            // Add "Forecast" label on second line
-            const forecastText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            forecastText.setAttribute('class', 'chart-label');
-            forecastText.setAttribute('x', x + barWidth / 2);
-            forecastText.setAttribute('y', height - margin.bottom + 40);
-            forecastText.setAttribute('text-anchor', 'middle');
-            forecastText.setAttribute('font-size', '9');
-            forecastText.setAttribute('fill', '#9ca3af');
-            forecastText.textContent = 'Forecast';
-            svg.appendChild(forecastText);
-            
-            barIndex++;
+            // Add type label on second line
+            const typeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            typeText.setAttribute('class', 'chart-label');
+            typeText.setAttribute('x', x + barWidth / 2);
+            typeText.setAttribute('y', height - margin.bottom + 40);
+            typeText.setAttribute('text-anchor', 'middle');
+            typeText.setAttribute('font-size', '9');
+            typeText.setAttribute('fill', '#9ca3af');
+            typeText.textContent = d.type === 'forecast' ? 'Forecast' : d.date.split('/')[0];
+            svg.appendChild(typeText);
         });
         
         // Add Y-axis labels and grid lines
@@ -672,7 +669,6 @@ class EDIDashboard {
             const value = Math.round((maxQuantity / yLabelCount) * i);
             const y = height - margin.bottom - (chartHeight / yLabelCount) * i;
             
-            // Y-axis label
             const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             label.setAttribute('class', 'chart-text');
             label.setAttribute('x', margin.left - 10);
@@ -682,7 +678,6 @@ class EDIDashboard {
             label.textContent = value;
             svg.appendChild(label);
             
-            // Grid line
             if (i > 0) {
                 const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 gridLine.setAttribute('x1', margin.left);
@@ -707,7 +702,6 @@ class EDIDashboard {
         legendItems.forEach((item, index) => {
             const legendX = width - margin.right - 160 + (index * 40);
             
-            // Legend color box
             const legendRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             legendRect.setAttribute('x', legendX);
             legendRect.setAttribute('y', legendY);
@@ -721,7 +715,6 @@ class EDIDashboard {
             }
             svg.appendChild(legendRect);
             
-            // Legend text
             const legendText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             legendText.setAttribute('x', legendX + 16);
             legendText.setAttribute('y', legendY + 9);
@@ -731,18 +724,56 @@ class EDIDashboard {
             svg.appendChild(legendText);
         });
         
-        // Add enhanced chart title at the bottom
+        // Add chart title
         const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         titleText.setAttribute('x', width / 2);
         titleText.setAttribute('y', height - 5);
         titleText.setAttribute('text-anchor', 'middle');
         titleText.setAttribute('font-size', '10');
         titleText.setAttribute('fill', '#6b7280');
-        titleText.textContent = 'Delivery dates (MM/DD) with status colors + Grey forecast bars';
+        titleText.textContent = 'Chronological delivery dates with forecast integration';
         svg.appendChild(titleText);
         
         container.innerHTML = '';
         container.appendChild(svg);
+    }
+
+    // 🔧 NEW - Merge forecast and order data chronologically
+    mergeForecastAndOrderData(orderData, forecastBars) {
+        const combined = [];
+        
+        // Add order data
+        orderData.forEach(order => {
+            combined.push({
+                type: 'order',
+                date: order.date,
+                displayDate: this.formatDateShort(order.date),
+                quantity: order.quantity,
+                orders: order.orders,
+                sortDate: this.parseDate(order.date)
+            });
+        });
+        
+        // Add forecast data
+        forecastBars.forEach(forecast => {
+            combined.push({
+                type: 'forecast',
+                date: forecast.fullDate,
+                displayDate: forecast.displayDate,
+                quantity: forecast.quantity,
+                sortDate: this.parseDate(forecast.fullDate)
+            });
+        });
+        
+        // Sort chronologically
+        combined.sort((a, b) => {
+            const dateA = a.sortDate || new Date('9999-12-31');
+            const dateB = b.sortDate || new Date('9999-12-31');
+            return dateA - dateB;
+        });
+        
+        console.log(`📊 Merged data for chart: ${combined.length} items (${orderData.length} orders + ${forecastBars.length} forecasts)`);
+        return combined;
     }
 
     // ENHANCED - Get forecast bars for chart with better date matching and type conversion
@@ -839,9 +870,8 @@ class EDIDashboard {
         });
     }
 
-    // ============ ENHANCED VERIFICATION AND DEBUGGING METHODS ============
+    // ============ VERIFICATION AND DEBUGGING METHODS ============
     
-    // Add this new verification method
     verifyForecastDataIntegrity() {
         console.log('🔍 Verifying forecast data integrity...');
         
@@ -871,7 +901,6 @@ class EDIDashboard {
         }
     }
 
-    // Add this new debugging method
     debugForecastDateFormats() {
         console.log('🔍 DEBUGGING FORECAST DATE FORMATS:');
         
@@ -1053,7 +1082,6 @@ class EDIDashboard {
         container.innerHTML = tableHTML;
     }
 
-    // ENHANCED Debug helper function
     debugForecastData() {
         console.log('🔍 DASHBOARD FORECAST DEBUG INFORMATION:');
         console.log('📊 Current forecast data object:', this.forecastData);
@@ -1202,9 +1230,17 @@ function logout() {
     ediDashboard.logout();
 }
 
-// ============ ENHANCED GLOBAL TEST FUNCTIONS ============
+// ============ GLOBAL EXCEL EXPORT FUNCTION ============
+window.exportToExcel = function() {
+    if (window.ediDashboard) {
+        window.ediDashboard.exportToExcel();
+    } else {
+        console.error('❌ EDI Dashboard not found');
+        alert('Export functionality not available');
+    }
+};
 
-// Add enhanced debug testing functions to window
+// Enhanced debug testing functions
 window.testForecastDebug = function() {
     console.log('🧪 Running forecast debug test...');
     ediDashboard.debugForecastData();
