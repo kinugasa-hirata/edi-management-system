@@ -596,7 +596,7 @@
                 }
             }
 
-            // Save all forecast changes
+            // 🔧 FIXED - Save all forecast changes with proper key parsing
             async saveAllForecasts() {
                 if (!this.userPermissions.canEdit) {
                     this.showMessage('You do not have permission to save changes', 'error');
@@ -614,13 +614,33 @@
                     
                     const forecasts = [];
                     this.changedCells.forEach(key => {
-                        const [drawingNumber, monthDate] = key.split('-');
+                        console.log(`💾 Processing changed cell: ${key}`);
+                        
+                        // FIXED: Proper parsing using lastIndexOf to handle multiple dashes
+                        const lastDashIndex = key.lastIndexOf('-');
+                        
+                        if (lastDashIndex === -1) {
+                            console.error(`❌ Invalid key format: ${key}`);
+                            return;
+                        }
+                        
+                        const drawingNumber = key.substring(0, lastDashIndex);    // "PP4166-4681P003"
+                        const monthDate = key.substring(lastDashIndex + 1);       // "08/01"
+                        
+                        console.log(`💾 Parsed key "${key}":`);
+                        console.log(`   Drawing: "${drawingNumber}"`);
+                        console.log(`   Month: "${monthDate}"`);
+                        console.log(`   Quantity: ${this.forecastData[key]}`);
+                        
+                        // Use correct field names that match backend expectation
                         forecasts.push({
-                            drawingNumber: drawingNumber,
-                            monthDate: monthDate,
+                            drawing_number: drawingNumber,   // Match backend field name
+                            month_date: monthDate,           // Match backend field name
                             quantity: this.forecastData[key] || 0
                         });
                     });
+
+                    console.log('💾 Forecast data to save:', forecasts);
 
                     const response = await fetch('/api/forecasts/batch', {
                         method: 'POST',
