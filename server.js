@@ -41,15 +41,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static file serving - FIXED PATH
 app.use(express.static(path.join(__dirname, 'public')));
 
-// FIXED SESSION CONFIGURATION
+// 🔧 FIXED SESSION CONFIGURATION - More lenient settings
 app.use(session({
   secret: process.env.SESSION_SECRET || 'edi-secret-key-2024-super-secure',
-  resave: false,
-  saveUninitialized: false,
-  rolling: true, // Reset expiry on each request
+  resave: true,  // Changed to true to prevent session loss
+  saveUninitialized: true,  // Changed to true
+  rolling: false, // Changed to false to prevent constant session resets
   cookie: { 
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    secure: false, // Keep false for both development and production for now
+    maxAge: 8 * 60 * 60 * 1000, // 8 hours (longer session)
+    secure: false, 
     httpOnly: true,
     sameSite: 'lax'
   },
@@ -58,7 +58,10 @@ app.use(session({
 
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`📍 ${req.method} ${req.path}`);
+  console.log(`📍 ${req.method} ${req.path} - Session: ${req.sessionID ? 'EXISTS' : 'MISSING'}`);
+  if (req.session && req.session.user) {
+    console.log(`👤 User: ${req.session.user.username} (${req.session.user.role})`);
+  }
   next();
 });
 
@@ -102,20 +105,24 @@ function normalizeMonthDate(monthDate) {
   return monthDate;
 }
 
-// ENHANCED AUTHENTICATION MIDDLEWARE
+// 🔧 FIXED AUTHENTICATION MIDDLEWARE - More lenient
 function enhancedRequireAuth(req, res, next) {
   console.log('🔐 Auth check - Session ID:', req.sessionID);
-  console.log('🔐 Auth check - Session data:', JSON.stringify(req.session, null, 2));
-  console.log('🔐 Auth check - User:', req.session?.user);
+  console.log('🔐 Auth check - Session exists:', !!req.session);
+  console.log('🔐 Auth check - User in session:', !!req.session?.user);
   
   if (req.session && req.session.user) {
     console.log('✅ Authentication successful for:', req.session.user.username);
     next();
   } else {
-    console.log('❌ Authentication failed - redirecting to login');
-    console.log('❌ Session exists:', !!req.session);
-    console.log('❌ User in session:', !!req.session?.user);
-    res.status(401).json({ error: 'Authentication required', redirect: '/' });
+    console.log('❌ Authentication failed - no valid session');
+    
+    // 🔧 FIXED: Send HTML redirect instead of JSON for browser requests
+    if (req.headers.accept && req.headers.accept.includes('text/html')) {
+      return res.redirect('/');
+    } else {
+      return res.status(401).json({ error: 'Authentication required', redirect: '/' });
+    }
   }
 }
 
@@ -451,6 +458,27 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
   }
 }
 
+// 🔧 NEW - Clear all forecast data function
+async function clearAllForecasts() {
+  console.log('🗑️ clearAllForecasts called');
+  
+  if (isProduction && sql) {
+    try {
+      const deleteQuery = 'DELETE FROM forecasts';
+      await sql.query(deleteQuery);
+      console.log('✅ All forecasts cleared from Postgres');
+      return true;
+    } catch (error) {
+      console.error('❌ Error clearing forecasts from Postgres:', error);
+      return false;
+    }
+  } else {
+    inMemoryForecasts = [];
+    console.log('✅ All forecasts cleared from memory');
+    return true;
+  }
+}
+
 // Utility functions
 function cleanProductName(productName) {
   if (!productName) return '';
@@ -491,9 +519,12 @@ app.get('/api/health', (req, res) => {
 // Login page - FIXED: Use path.join for file serving
 app.get('/', (req, res) => {
   try {
-    if (req.session.user) {
+    console.log('🏠 Root route - checking session:', !!req.session?.user);
+    if (req.session?.user) {
+      console.log('👤 User already logged in, redirecting to dashboard');
       res.redirect('/dashboard');
     } else {
+      console.log('🔓 No user session, showing login page');
       res.sendFile(path.join(__dirname, 'public', 'login.html'));
     }
   } catch (error) {
@@ -505,6 +536,7 @@ app.get('/', (req, res) => {
 // Dashboard page - FIXED: Use path.join for file serving
 app.get('/dashboard', enhancedRequireAuth, (req, res) => {
   try {
+    console.log('📊 Dashboard route accessed by:', req.session.user.username);
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
   } catch (error) {
     console.error('❌ Error in dashboard route:', error);
@@ -515,6 +547,7 @@ app.get('/dashboard', enhancedRequireAuth, (req, res) => {
 // Forecast page
 app.get('/forecast', enhancedRequireAuth, (req, res) => {
   try {
+    console.log('📈 Forecast route accessed by:', req.session.user.username);
     res.sendFile(path.join(__dirname, 'public', 'forecast.html'));
   } catch (error) {
     console.error('❌ Error in forecast route:', error);
@@ -522,12 +555,11 @@ app.get('/forecast', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// ENHANCED LOGIN ENDPOINT
+// 🔧 FIXED LOGIN ENDPOINT - Better session handling
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body;
     console.log('🔑 Login attempt:', { username });
-    console.log('🔑 Session before login:', req.sessionID);
     
     let userRole = null;
     
@@ -538,41 +570,24 @@ app.post('/api/login', (req, res) => {
     }
     
     if (userRole) {
-      // Force session regeneration for security
-      req.session.regenerate((err) => {
-        if (err) {
-          console.error('❌ Session regeneration error:', err);
-          return res.status(500).json({ success: false, message: 'Session error' });
+      // Set user data in session (no regeneration to avoid issues)
+      req.session.user = { 
+        username, 
+        role: userRole,
+        loginTime: new Date().toISOString() 
+      };
+      
+      console.log('✅ Login successful for:', username, 'Role:', userRole);
+      console.log('✅ Session ID:', req.sessionID);
+      
+      res.json({ 
+        success: true, 
+        message: 'Login successful',
+        role: userRole,
+        permissions: {
+          canEdit: userRole === 'admin',
+          canView: true
         }
-        
-        // Set user data in new session
-        req.session.user = { 
-          username, 
-          role: userRole,
-          loginTime: new Date().toISOString() 
-        };
-        
-        // Force session save
-        req.session.save((err) => {
-          if (err) {
-            console.error('❌ Session save error:', err);
-            return res.status(500).json({ success: false, message: 'Session save error' });
-          }
-          
-          console.log('✅ Login successful for:', username, 'Role:', userRole);
-          console.log('✅ New session ID:', req.sessionID);
-          console.log('✅ Session data saved:', JSON.stringify(req.session.user, null, 2));
-          
-          res.json({ 
-            success: true, 
-            message: 'Login successful',
-            role: userRole,
-            permissions: {
-              canEdit: userRole === 'admin',
-              canView: true
-            }
-          });
-        });
       });
     } else {
       console.log('❌ Login failed for:', username);
@@ -591,6 +606,7 @@ app.post('/api/login', (req, res) => {
 app.get('/api/user-info', enhancedRequireAuth, (req, res) => {
   try {
     const user = req.session.user;
+    console.log('ℹ️ User info requested for:', user.username);
     res.json({
       username: user.username,
       role: user.role,
@@ -792,6 +808,29 @@ app.get('/api/forecasts', enhancedRequireAuth, async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching forecast data:', error);
     res.status(500).json({ error: 'Failed to fetch forecast data' });
+  }
+});
+
+// 🔧 NEW - Clear all forecast data endpoint
+app.delete('/api/forecasts/clear', requireAdminAuth, async (req, res) => {
+  console.log('🗑️ Clear all forecasts requested');
+  
+  try {
+    const success = await clearAllForecasts();
+    
+    if (success) {
+      console.log('✅ All forecasts cleared successfully');
+      res.json({ 
+        success: true, 
+        message: 'All forecast data cleared successfully' 
+      });
+    } else {
+      console.log('❌ Failed to clear forecasts');
+      res.status(500).json({ error: 'Failed to clear forecast data' });
+    }
+  } catch (error) {
+    console.error('❌ Error clearing forecasts:', error);
+    res.status(500).json({ error: 'Failed to clear forecast data', details: error.message });
   }
 });
 

@@ -243,6 +243,30 @@
             background: #b91c1c;
         }
 
+        /* 🔧 NEW - Danger button style for clear/refresh */
+        .btn-danger {
+            background: #dc2626;
+            border: 1px solid #b91c1c;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger:disabled {
+            background: #9ca3af;
+            border-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .import-notice {
             background: #fef3c7;
             border: 1px solid #f59e0b;
@@ -542,12 +566,9 @@
 
             <!-- Forecast Controls -->
             <div class="forecast-controls">
-                <!-- Existing save controls -->
+                <!-- Save controls -->
                 <button class="btn btn-primary admin-only" id="saveAllBtn" onclick="saveAllForecasts()">
                     💾 Save All Changes
-                </button>
-                <button class="btn btn-secondary admin-only" id="clearAllBtn" onclick="clearAllForecasts()">
-                    🗑️ Clear All
                 </button>
                 
                 <!-- Excel Import Controls -->
@@ -561,15 +582,15 @@
                     </button>
                 </div>
                 
-                <!-- Existing other controls -->
-                <button class="btn btn-success" id="refreshBtn" onclick="loadForecastData()">
+                <!-- 🔧 FIXED - Clear and Refresh controls -->
+                <button class="btn btn-danger admin-only" id="clearAllBtn" onclick="clearAllForecastsFromDatabase()">
+                    🗑️ Clear All Data
+                </button>
+                <button class="btn btn-success" id="refreshBtn" onclick="refreshForecastData()">
                     🔄 Refresh Data
                 </button>
                 <button class="btn btn-secondary" id="debugBtn" onclick="showDebugInfo()">
                     🔍 Debug Info
-                </button>
-                <button class="btn btn-warning" onclick="testForecastTableState()">
-                    🧪 Test Table State
                 </button>
                 
                 <div class="read-only-notice" id="readOnlyNotice">
@@ -665,6 +686,7 @@
                         
                         return userInfo;
                     } else {
+                        console.log('❌ User not authenticated, redirecting to login');
                         window.location.href = '/';
                         return null;
                     }
@@ -969,36 +991,60 @@
                 }
             }
 
-            // Clear all forecast data
-            async clearAllForecasts() {
+            // 🔧 NEW - Clear all forecast data from database
+            async clearAllForecastsFromDatabase() {
                 if (!this.userPermissions.canEdit) {
                     this.showMessage('You do not have permission to clear data', 'error');
                     return;
                 }
 
-                if (!confirm('Are you sure you want to clear all forecast data? This action cannot be undone.')) {
+                if (!confirm('⚠️ DANGER: This will permanently delete ALL forecast data from the database.\n\nThis action cannot be undone. Are you sure you want to continue?')) {
                     return;
                 }
 
                 try {
                     this.showLoading(true);
+                    this.showMessage('Clearing all forecast data from database...', 'warning');
                     
-                    // Clear all inputs
-                    const inputs = document.querySelectorAll('.forecast-input');
-                    inputs.forEach(input => {
-                        input.value = '';
-                        input.classList.add('changed');
-                        const key = input.dataset.key;
-                        this.changedCells.add(key);
-                        this.forecastData[key] = 0;
+                    const response = await fetch('/api/forecasts/clear', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
                     });
 
-                    this.updateSummary();
-                    this.updateSaveStatus('unsaved', 'Ready to save cleared data');
-                    this.showMessage('All forecast data cleared. Click "Save All Changes" to confirm.', 'warning');
-                    
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showMessage('All forecast data cleared successfully from database', 'success');
+                        
+                        // Clear local data
+                        this.forecastData = {};
+                        this.clearChangedCells();
+                        
+                        // Re-render table with empty data
+                        this.renderForecastTable();
+                        this.updateSummary();
+                        this.updateSaveStatus('saved', 'Data cleared');
+                        
+                    } else {
+                        this.showMessage(result.error || 'Failed to clear forecast data', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Failed to clear forecast data: ' + error.message, 'error');
                 } finally {
                     this.showLoading(false);
+                }
+            }
+
+            // 🔧 NEW - Refresh forecast data (reload from server)
+            async refreshForecastData() {
+                try {
+                    this.showMessage('Refreshing forecast data...', 'info');
+                    await this.loadForecastData();
+                    this.showMessage('Forecast data refreshed successfully', 'success');
+                } catch (error) {
+                    this.showMessage('Failed to refresh forecast data: ' + error.message, 'error');
                 }
             }
 
@@ -1251,12 +1297,14 @@ Check console for detailed logs.`);
             forecastManager.saveAllForecasts();
         }
 
-        function clearAllForecasts() {
-            forecastManager.clearAllForecasts();
+        // 🔧 NEW - Clear all forecasts from database (not just local)
+        function clearAllForecastsFromDatabase() {
+            forecastManager.clearAllForecastsFromDatabase();
         }
 
-        function loadForecastData() {
-            forecastManager.loadForecastData();
+        // 🔧 NEW - Refresh forecast data from server
+        function refreshForecastData() {
+            forecastManager.refreshForecastData();
         }
 
         function logout() {
