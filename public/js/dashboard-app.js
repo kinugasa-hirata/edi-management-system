@@ -155,6 +155,7 @@ class EDIDashboard {
         }
     }
 
+    // ENHANCED - Forecast data loading with better debugging
     async loadForecastData() {
         try {
             const response = await fetch('/api/forecasts');
@@ -162,17 +163,19 @@ class EDIDashboard {
             if (response.ok) {
                 const forecasts = await response.json();
                 console.log('📈 Dashboard: Raw forecast data from API:', forecasts);
+                console.log('📈 Dashboard: Forecast count:', forecasts.length);
                 
-                // Convert array to object for easier lookup
+                // Convert array to object for easier lookup with enhanced debugging
                 this.forecastData = {};
-                forecasts.forEach(forecast => {
+                forecasts.forEach((forecast, index) => {
                     const key = `${forecast.drawing_number}-${forecast.month_date}`;
                     this.forecastData[key] = forecast.quantity;
-                    console.log(`📈 Dashboard: Loaded forecast ${key} = ${forecast.quantity}`);
+                    console.log(`📈 Dashboard: Loaded forecast ${index + 1}: ${key} = ${forecast.quantity}`);
                 });
                 
-                console.log('📈 Dashboard: Processed forecast data:', this.forecastData);
-                console.log('✅ Forecast data loaded:', Object.keys(this.forecastData).length, 'entries');
+                console.log('📈 Dashboard: Processed forecast data keys:', Object.keys(this.forecastData));
+                console.log('📈 Dashboard: Total forecast entries:', Object.keys(this.forecastData).length);
+                console.log('✅ Forecast data loaded successfully');
             } else {
                 console.warn('⚠️ Failed to load forecast data:', response.status);
             }
@@ -716,10 +719,10 @@ class EDIDashboard {
         container.appendChild(svg);
     }
 
-    // Get forecast bars for chart
+    // ENHANCED - Get forecast bars for chart with better date matching
     getForecastBarsForChart(drawingNumber, existingData) {
         console.log(`📊 Getting forecast bars for ${drawingNumber}`);
-        console.log(`📊 Available forecast data:`, this.forecastData);
+        console.log(`📊 Available forecast data keys:`, Object.keys(this.forecastData));
         
         const forecastBars = [];
         const now = new Date();
@@ -728,10 +731,14 @@ class EDIDashboard {
         const existingDates = new Set(existingData.map(d => d.date));
         console.log(`📊 Existing delivery dates:`, Array.from(existingDates));
         
-        // Generate 6 months from current month
+        // Generate 6 months from current month with consistent formatting
         for (let i = 0; i < 6; i++) {
             const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-            const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            
+            // Use consistent MM/01 format
+            const monthKey = `${String(month).padStart(2, '0')}/01`;
             const forecastKey = `${drawingNumber}-${monthKey}`;
             
             console.log(`📊 Checking forecast key: ${forecastKey}`);
@@ -739,17 +746,17 @@ class EDIDashboard {
             
             if (this.forecastData[forecastKey] && this.forecastData[forecastKey] > 0) {
                 // Format display date
-                const displayDate = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
+                const displayDate = `${String(month).padStart(2, '0')}/01`;
                 
                 // Only add if not overlapping with existing delivery dates
-                const fullDate = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/01`;
+                const fullDate = `${year}/${String(month).padStart(2, '0')}/01`;
                 if (!existingDates.has(fullDate)) {
                     const forecastBar = {
                         quantity: this.forecastData[forecastKey],
                         displayDate: displayDate,
                         fullDate: fullDate,
-                        month: date.getMonth() + 1,
-                        year: date.getFullYear()
+                        month: month,
+                        year: year
                     };
                     forecastBars.push(forecastBar);
                     console.log(`✅ Added forecast bar:`, forecastBar);
@@ -940,6 +947,34 @@ class EDIDashboard {
         container.innerHTML = tableHTML;
     }
 
+    // ENHANCED Debug helper function
+    debugForecastData() {
+        console.log('🔍 DASHBOARD FORECAST DEBUG INFORMATION:');
+        console.log('📊 Current forecast data object:', this.forecastData);
+        console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
+        
+        // Show all forecast keys
+        Object.keys(this.forecastData).forEach(key => {
+            console.log(`🔍 Forecast entry: ${key} = ${this.forecastData[key]}`);
+        });
+        
+        // Generate expected keys for comparison
+        const now = new Date();
+        
+        console.log('🔍 Expected forecast keys for next 6 months:');
+        for (let i = 0; i < 6; i++) {
+            const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
+            
+            this.DRAWING_NUMBER_ORDER.forEach(product => {
+                const expectedKey = `${product}-${monthKey}`;
+                const hasData = this.forecastData.hasOwnProperty(expectedKey);
+                const value = this.forecastData[expectedKey] || 0;
+                console.log(`🔍 ${expectedKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
+            });
+        }
+    }
+
     // ============ INITIALIZATION ============
     initializeFileHandlers() {
         const fileInput = document.getElementById('fileInput');
@@ -1047,6 +1082,23 @@ function showProductPage(drawingNumber) {
 function logout() {
     ediDashboard.logout();
 }
+
+// Add debug testing functions to window
+window.testForecastDebug = function() {
+    ediDashboard.debugForecastData();
+};
+
+window.testSessionDebug = async function() {
+    try {
+        const response = await fetch('/api/user-info');
+        const data = await response.json();
+        console.log('🔍 Session debug - User info:', data);
+        return data;
+    } catch (error) {
+        console.log('❌ Session debug failed:', error);
+        return null;
+    }
+};
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {

@@ -41,14 +41,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static file serving - FIXED PATH
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session configuration
+// FIXED SESSION CONFIGURATION
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'edi-secret-key-2024',
+  secret: process.env.SESSION_SECRET || 'edi-secret-key-2024-super-secure',
   resave: false,
   saveUninitialized: false,
+  rolling: true, // Reset expiry on each request
   cookie: { 
-    maxAge: 24 * 60 * 60 * 1000,
-    secure: false,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    secure: false, // Keep false for both development and production for now
     httpOnly: true,
     sameSite: 'lax'
   },
@@ -80,15 +81,40 @@ const DRAWING_NUMBER_ORDER = [
   'PP4166-7106P003' // Product name: ﾐﾄﾞﾙﾌﾚｰﾑ
 ];
 
-// Enhanced authentication middleware
+// NEW UTILITY FUNCTION - Date format normalization
+function normalizeMonthDate(monthDate) {
+  if (!monthDate) return monthDate;
+  
+  // Handle various date formats and normalize to MM/01
+  if (monthDate.includes('/')) {
+    const parts = monthDate.split('/');
+    if (parts.length >= 2) {
+      const month = parts[0].padStart(2, '0');
+      return `${month}/01`;
+    }
+  }
+  
+  // If it's just a month number, format it properly
+  if (/^\d+$/.test(monthDate)) {
+    return `${monthDate.padStart(2, '0')}/01`;
+  }
+  
+  return monthDate;
+}
+
+// ENHANCED AUTHENTICATION MIDDLEWARE
 function enhancedRequireAuth(req, res, next) {
+  console.log('🔐 Auth check - Session ID:', req.sessionID);
+  console.log('🔐 Auth check - Session data:', JSON.stringify(req.session, null, 2));
   console.log('🔐 Auth check - User:', req.session?.user);
   
   if (req.session && req.session.user) {
-    console.log('✅ Authentication successful');
+    console.log('✅ Authentication successful for:', req.session.user.username);
     next();
   } else {
-    console.log('❌ Authentication failed');
+    console.log('❌ Authentication failed - redirecting to login');
+    console.log('❌ Session exists:', !!req.session);
+    console.log('❌ User in session:', !!req.session?.user);
     res.status(401).json({ error: 'Authentication required', redirect: '/' });
   }
 }
@@ -311,14 +337,21 @@ async function addOrder(orderData) {
   }
 }
 
-// Forecast functions
+// ENHANCED FORECAST FUNCTIONS
 async function getAllForecasts() {
   console.log('🔍 getAllForecasts called');
   
   if (isProduction && sql) {
     try {
       const selectQuery = `
-        SELECT * FROM forecasts 
+        SELECT 
+          id,
+          drawing_number,
+          month_date,
+          quantity,
+          created_at,
+          updated_at
+        FROM forecasts 
         ORDER BY 
           CASE drawing_number
             WHEN 'PP4166-4681P003' THEN 1
@@ -333,7 +366,13 @@ async function getAllForecasts() {
           month_date ASC
       `;
       const result = await sql.query(selectQuery);
+      
+      // Debug logging for date formats
       console.log('✅ Forecast query result:', result.rows.length, 'records');
+      result.rows.forEach(row => {
+        console.log(`🔍 DB Forecast: ${row.drawing_number} - ${row.month_date} = ${row.quantity}`);
+      });
+      
       return result.rows;
     } catch (error) {
       console.error('❌ Error fetching forecasts from Postgres:', error);
@@ -355,12 +394,20 @@ async function getAllForecasts() {
     });
     
     console.log('📊 In-memory forecast data:', sorted.length, 'records');
+    sorted.forEach(row => {
+      console.log(`🔍 Memory Forecast: ${row.drawing_number} - ${row.month_date} = ${row.quantity}`);
+    });
+    
     return sorted;
   }
 }
 
 async function saveForecast(drawingNumber, monthDate, quantity) {
   console.log('💾 saveForecast called:', { drawingNumber, monthDate, quantity });
+  
+  // Validate and normalize month date format
+  const normalizedMonthDate = normalizeMonthDate(monthDate);
+  console.log('🔄 Normalized month date:', monthDate, '->', normalizedMonthDate);
   
   if (isProduction && sql) {
     try {
@@ -370,8 +417,8 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
         ON CONFLICT (drawing_number, month_date)
         DO UPDATE SET quantity = $3, updated_at = CURRENT_TIMESTAMP
       `;
-      await sql.query(upsertQuery, [drawingNumber, monthDate, quantity]);
-      console.log('✅ Forecast saved to Postgres:', { drawingNumber, monthDate, quantity });
+      await sql.query(upsertQuery, [drawingNumber, normalizedMonthDate, quantity]);
+      console.log('✅ Forecast saved to Postgres:', { drawingNumber, monthDate: normalizedMonthDate, quantity });
       return true;
     } catch (error) {
       console.error('❌ Error saving forecast to Postgres:', error);
@@ -380,18 +427,18 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
   } else {
     // Handle in-memory storage
     const existingIndex = inMemoryForecasts.findIndex(f => 
-      f.drawing_number === drawingNumber && f.month_date === monthDate
+      f.drawing_number === drawingNumber && f.month_date === normalizedMonthDate
     );
     
     if (existingIndex >= 0) {
       inMemoryForecasts[existingIndex].quantity = quantity;
       inMemoryForecasts[existingIndex].updated_at = new Date().toISOString();
-      console.log('✅ Updated forecast in memory:', { drawingNumber, monthDate, quantity });
+      console.log('✅ Updated forecast in memory:', { drawingNumber, monthDate: normalizedMonthDate, quantity });
     } else {
       const newForecast = {
         id: nextForecastId++,
         drawing_number: drawingNumber,
-        month_date: monthDate,
+        month_date: normalizedMonthDate,
         quantity: quantity,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -400,7 +447,6 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
       console.log('✅ Added new forecast to memory:', newForecast);
     }
     
-    console.log('📊 Current in-memory forecasts:', inMemoryForecasts);
     return true;
   }
 }
@@ -476,11 +522,12 @@ app.get('/forecast', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// Updated login endpoint with simple authentication
+// ENHANCED LOGIN ENDPOINT
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body;
     console.log('🔑 Login attempt:', { username });
+    console.log('🔑 Session before login:', req.sessionID);
     
     let userRole = null;
     
@@ -491,20 +538,41 @@ app.post('/api/login', (req, res) => {
     }
     
     if (userRole) {
-      req.session.user = { 
-        username, 
-        role: userRole,
-        loginTime: new Date().toISOString() 
-      };
-      console.log('✅ Login successful for:', username, 'Role:', userRole);
-      res.json({ 
-        success: true, 
-        message: 'Login successful',
-        role: userRole,
-        permissions: {
-          canEdit: userRole === 'admin',
-          canView: true
+      // Force session regeneration for security
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error('❌ Session regeneration error:', err);
+          return res.status(500).json({ success: false, message: 'Session error' });
         }
+        
+        // Set user data in new session
+        req.session.user = { 
+          username, 
+          role: userRole,
+          loginTime: new Date().toISOString() 
+        };
+        
+        // Force session save
+        req.session.save((err) => {
+          if (err) {
+            console.error('❌ Session save error:', err);
+            return res.status(500).json({ success: false, message: 'Session save error' });
+          }
+          
+          console.log('✅ Login successful for:', username, 'Role:', userRole);
+          console.log('✅ New session ID:', req.sessionID);
+          console.log('✅ Session data saved:', JSON.stringify(req.session.user, null, 2));
+          
+          res.json({ 
+            success: true, 
+            message: 'Login successful',
+            role: userRole,
+            permissions: {
+              canEdit: userRole === 'admin',
+              canView: true
+            }
+          });
+        });
       });
     } else {
       console.log('❌ Login failed for:', username);
@@ -538,11 +606,23 @@ app.get('/api/user-info', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// Logout endpoint
+// ENHANCED LOGOUT ENDPOINT
 app.post('/api/logout', (req, res) => {
   try {
-    req.session.destroy();
-    res.json({ success: true });
+    const username = req.session?.user?.username;
+    console.log('🚪 Logout attempt for:', username);
+    
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('❌ Session destroy error:', err);
+        return res.status(500).json({ success: false, message: 'Logout failed' });
+      }
+      
+      // Clear the session cookie
+      res.clearCookie('edi.session.id');
+      console.log('✅ Logout successful for:', username);
+      res.json({ success: true });
+    });
   } catch (error) {
     console.error('❌ Logout error:', error);
     res.status(500).json({ success: false, message: 'Logout failed' });
@@ -563,30 +643,43 @@ app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   }
 });
 
-// Debug endpoint to check forecast data
+// ENHANCED DEBUG ENDPOINT
 app.get('/api/debug/forecasts', enhancedRequireAuth, async (req, res) => {
   console.log('🔍 DEBUG: Checking forecast data');
   
   try {
     if (isProduction && sql) {
       const result = await sql.query('SELECT * FROM forecasts ORDER BY drawing_number, month_date');
-      console.log('🔍 DEBUG: Postgres forecasts:', result.rows);
+      console.log('🔍 DEBUG: Postgres forecasts count:', result.rows.length);
+      
+      // Detailed logging of each forecast entry
+      result.rows.forEach((row, index) => {
+        console.log(`🔍 DEBUG: Forecast ${index + 1}: ${row.drawing_number} | ${row.month_date} | ${row.quantity}`);
+      });
+      
       res.json({ 
         source: 'postgres', 
         data: result.rows,
-        count: result.rows.length 
+        count: result.rows.length,
+        sample: result.rows.slice(0, 5) // Show first 5 for debugging
       });
     } else {
-      console.log('🔍 DEBUG: In-memory forecasts:', inMemoryForecasts);
+      console.log('🔍 DEBUG: In-memory forecasts count:', inMemoryForecasts.length);
+      
+      inMemoryForecasts.forEach((row, index) => {
+        console.log(`🔍 DEBUG: Memory Forecast ${index + 1}: ${row.drawing_number} | ${row.month_date} | ${row.quantity}`);
+      });
+      
       res.json({ 
         source: 'memory', 
         data: inMemoryForecasts,
-        count: inMemoryForecasts.length 
+        count: inMemoryForecasts.length,
+        sample: inMemoryForecasts.slice(0, 5)
       });
     }
   } catch (error) {
     console.error('❌ Error in debug endpoint:', error);
-    res.status(500).json({ error: 'Debug failed' });
+    res.status(500).json({ error: 'Debug failed', details: error.message });
   }
 });
 

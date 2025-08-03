@@ -3,10 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDI Management System - Dashboard</title>
+    <title>EDI Management System - Forecast</title>
     
     <!-- External CSS -->
     <link rel="stylesheet" href="/css/dashboard-styles.css">
+    <style>
+        /* Additional forecast-specific styles */
+        .forecast-table {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+
+        .forecast-table table {
+            min-width: 900px;
+            font-size: 0.9rem;
+        }
+
+        .forecast-table th {
+            background: #4f46e5;
+            color: white;
+            text-align: center;
+            padding: 12px 8px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .forecast-table th.drawing-header {
+            background: #1f2937;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            min-width: 140px;
+        }
+
+        .forecast-table th.product-header {
+            background: #374151;
+            position: sticky;
+            left: 140px;
+            z-index: 10;
+            min-width: 120px;
+        }
+
+        .forecast-table td.drawing-cell {
+            background: #f8fafc;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 8px;
+            border-right: 2px solid #e5e7eb;
+            min-width: 140px;
+        }
+
+        .forecast-table td.product-cell {
+            background: #f1f5f9;
+            position: sticky;
+            left: 140px;
+            z-index: 5;
+            font-size: 0.8rem;
+            padding: 8px;
+            border-right: 2px solid #e5e7eb;
+            min-width: 120px;
+        }
+
+        .forecast-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.9rem;
+            background: white;
+            min-width: 80px;
+        }
+
+        .forecast-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+
+        .forecast-input:disabled {
+            background: #f3f4f6;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .forecast-input.changed {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .month-header {
+            text-align: center;
+            font-size: 0.9rem;
+            line-height: 1.2;
+            min-width: 90px;
+        }
+
+        .month-japanese {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .month-english {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .forecast-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .forecast-summary {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4f46e5;
+            margin-bottom: 5px;
+        }
+
+        .summary-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .navigation-bar {
+            background: #f8fafc;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .nav-link {
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .nav-link.active {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .save-status {
+            margin-left: auto;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .save-status.saving {
+            color: #f59e0b;
+        }
+
+        .save-status.saved {
+            color: #059669;
+        }
+
+        .save-status.error {
+            color: #dc2626;
+        }
+
+        @media (max-width: 768px) {
+            .forecast-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .navigation-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+
+            .save-status {
+                margin-left: 0;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -14,317 +223,626 @@
             <div class="user-info" id="userInfo">
                 <span id="userDisplay">Loading...</span>
             </div>
-            <h1>📊 EDI Management System</h1>
-            <p>Electronic Data Interchange Order Management</p>
+            <h1>📈 EDI Forecast Management</h1>
+            <p>Monthly Production Forecast Planning</p>
         </div>
 
         <!-- Navigation Bar -->
-        <div class="navigation-bar" style="background: #f8fafc; padding: 15px 30px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 20px;">
-            <a href="/dashboard" class="nav-link active" style="color: #4f46e5; background: white; text-decoration: none; font-weight: 500; padding: 8px 16px; border-radius: 6px;">📊 Dashboard</a>
-            <a href="/forecast" class="nav-link" style="color: #6b7280; text-decoration: none; font-weight: 500; padding: 8px 16px; border-radius: 6px; transition: all 0.3s ease;">📈 Forecast</a>
-            <button class="btn btn-logout" style="margin-left: auto;">🚪 Logout</button>
-        </div>
-
-        <div class="controls">
-            <input type="file" id="fileInput" accept=".csv,.tsv,.EDIdat" />
-            <button class="btn btn-primary admin-only" id="chooseFileBtn">
-                📁 Choose EDI File
-            </button>
-            <button class="btn btn-secondary admin-only" id="importBtn" disabled>
-                📤 Import WebEDI Data
-            </button>
-            <button class="btn btn-success admin-only" id="saveAllBtn">
-                💾 Save All Changes
-            </button>
-            <div class="read-only-notice" id="readOnlyNotice">
-                👁️ View-Only Mode - Contact admin for edit access
-            </div>
+        <div class="navigation-bar">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/forecast" class="nav-link active">📈 Forecast</a>
+            <div class="save-status" id="saveStatus">Ready</div>
+            <button class="btn btn-logout" onclick="logout()">🚪 Logout</button>
         </div>
 
         <div class="content">
             <div id="messageContainer"></div>
             <div class="loading" id="loadingIndicator">
                 <div class="spinner"></div>
-                Loading data...
+                Loading forecast data...
             </div>
 
-            <!-- Always Visible Tab Navigation -->
-            <div class="tab-navigation" id="tabNavigation">
-                <button class="tab-btn active">📊 All Orders</button>
-                <button class="tab-btn" data-drawing="PP4166-4681P003">🔧 4681P003</button>
-                <button class="tab-btn" data-drawing="PP4166-4681P004">🔧 4681P004</button>
-                <button class="tab-btn" data-drawing="PP4166-4726P003">⚙️ 4726P003</button>
-                <button class="tab-btn" data-drawing="PP4166-4726P004">⚙️ 4726P004</button>
-                <button class="tab-btn" data-drawing="PP4166-4731P002">🔩 4731P002</button>
-                <button class="tab-btn" data-drawing="PP4166-7106P001">🔩 7106P001</button>
-                <button class="tab-btn" data-drawing="PP4166-7106P003">🔩 7106P003</button>
-            </div>
-
-            <!-- Main Dashboard Tab -->
-            <div id="mainDashboard" class="tab-content active">
-                <div class="data-header">
-                    <h2>EDI Orders Data</h2>
-                    <span class="record-count" id="recordCount">0 records</span>
-                </div>
-
-                <div id="dataContainer">
-                    <div class="empty-state">
-                        <div class="icon">📊</div>
-                        <h3>No EDI Data Loaded</h3>
-                        <p id="emptyStateMessage">Import an EDI file to get started.</p>
-                        
-                        <div class="steps" id="getStartedSteps">
-                            <h4>Get started in 2 simple steps:</h4>
-                            <div class="step">
-                                <div class="step-number">1</div>
-                                <span>Click "📁 Choose EDI File" to upload your data</span>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">2</div>
-                                <span>Click "Import WebEDI Data" to load orders</span>
-                            </div>
-                        </div>
+            <!-- Forecast Summary -->
+            <div class="forecast-summary">
+                <h3 style="margin-bottom: 15px; color: #1f2937;">📊 Forecast Summary</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-number" id="totalForecast">0</div>
+                        <div class="summary-label">Total Forecast</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-number" id="nextMonthTotal">0</div>
+                        <div class="summary-label">Next Month</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-number" id="changedCells">0</div>
+                        <div class="summary-label">Unsaved Changes</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-number" id="lastSaved">-</div>
+                        <div class="summary-label">Last Saved</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Product Tabs Content -->
-            <div id="tabContent">
-                <!-- PP4166-4681P003 -->
-                <div class="tab-content" id="tab-PP4166-4681P003">
-                    <div class="product-header">
-                        <h2>🔧 PP4166-4681P003</h2>
-                        <p>ｱｯﾊﾟﾌﾞﾚｰﾑ</p>
-                    </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4681P003">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4681P003">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4681P003">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4681P003">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Forecast Controls -->
+            <div class="forecast-controls">
+                <button class="btn btn-primary admin-only" id="saveAllBtn" onclick="saveAllForecasts()">
+                    💾 Save All Changes
+                </button>
+                <button class="btn btn-secondary admin-only" id="clearAllBtn" onclick="clearAllForecasts()">
+                    🗑️ Clear All
+                </button>
+                <button class="btn btn-success" id="refreshBtn" onclick="loadForecastData()">
+                    🔄 Refresh Data
+                </button>
+                <button class="btn btn-secondary" id="debugBtn" onclick="showDebugInfo()">
+                    🔍 Debug Info
+                </button>
+                <div class="read-only-notice" id="readOnlyNotice">
+                    👁️ View-Only Mode - Contact admin for edit access
                 </div>
+            </div>
 
-                <!-- PP4166-4681P004 -->
-                <div class="tab-content" id="tab-PP4166-4681P004">
-                    <div class="product-header">
-                        <h2>🔧 PP4166-4681P004</h2>
-                        <p>ｱｯﾊﾟﾌﾞﾚｰﾑ</p>
-                    </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4681P004">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4681P004">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4681P004">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4681P004">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <!-- Forecast Table -->
+            <div class="data-header">
+                <h2>Monthly Production Forecast</h2>
+                <span class="record-count" id="recordCount">Loading...</span>
+            </div>
 
-                <!-- PP4166-4726P003 -->
-                <div class="tab-content" id="tab-PP4166-4726P003">
-                    <div class="product-header">
-                        <h2>⚙️ PP4166-4726P003</h2>
-                        <p>ﾄｯﾌﾟﾌﾟﾚｰﾄ</p>
-                    </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4726P003">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4726P003">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4726P003">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4726P003">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PP4166-4726P004 -->
-                <div class="tab-content" id="tab-PP4166-4726P004">
-                    <div class="product-header">
-                        <h2>⚙️ PP4166-4726P004</h2>
-                        <p>ﾄｯﾌﾟﾌﾟﾚｰﾄ</p>
-                    </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4726P004">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4726P004">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4726P004">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4726P004">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PP4166-4731P002 -->
-                <div class="tab-content" id="tab-PP4166-4731P002">
-                    <div class="product-header">
-                        <h2>🔩 PP4166-4731P002</h2>
-                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
-                    </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4731P002">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4731P002">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4731P002">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4731P002">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PP4166-7106P001 -->
-                <div class="tab-content" id="tab-PP4166-7106P001">
-                    <div class="product-header">
-                        <h2>🔩 PP4166-7106P001</h2>
-                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
-                    </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-7106P001">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-7106P001">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-7106P001">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-7106P001">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PP4166-7106P003 -->
-                <div class="tab-content" id="tab-PP4166-7106P003">
-                    <div class="product-header">
-                        <h2>🔩 PP4166-7106P003</h2>
-                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
-                    </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-7106P003">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-7106P003">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-7106P003">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-7106P003">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
-                    </div>
+            <div class="forecast-table" id="forecastTableContainer">
+                <div class="empty-state">
+                    <div class="icon">📈</div>
+                    <h3>Loading Forecast Data</h3>
+                    <p>Please wait while we load the forecast information...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Single consolidated JavaScript file -->
-    <script src="/js/dashboard-app.js"></script>
+    <!-- JavaScript -->
+    <script>
+        class ForecastManager {
+            constructor() {
+                this.currentUser = null;
+                this.userPermissions = { canEdit: false, canView: true };
+                this.forecastData = {};
+                this.changedCells = new Set();
+                this.months = [];
+                this.products = [
+                    { drawing: 'PP4166-4681P003', name: 'ｱｯﾊﾟﾌﾞﾚｰﾑ' },
+                    { drawing: 'PP4166-4681P004', name: 'ｱｯﾊﾟﾌﾞﾚｰﾑ' },
+                    { drawing: 'PP4166-4726P003', name: 'ﾄｯﾌﾟﾌﾟﾚｰﾄ' },
+                    { drawing: 'PP4166-4726P004', name: 'ﾄｯﾌﾟﾌﾟﾚｰﾄ' },
+                    { drawing: 'PP4166-4731P002', name: 'ﾐﾄﾞﾙﾌﾚｰﾑ' },
+                    { drawing: 'PP4166-7106P001', name: 'ﾐﾄﾞﾙﾌﾚｰﾑ' },
+                    { drawing: 'PP4166-7106P003', name: 'ﾐﾄﾞﾙﾌﾚｰﾑ' }
+                ];
+            }
+
+            // ENHANCED - Generate 12 months starting from current month with consistent formatting
+            generateMonths() {
+                const months = [];
+                const now = new Date();
+                
+                for (let i = 0; i < 12; i++) {
+                    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                    const year = date.getFullYear();
+                    const month = date.getMonth() + 1;
+                    
+                    // Ensure consistent MM/01 format
+                    const monthKey = `${String(month).padStart(2, '0')}/01`;
+                    
+                    // Japanese month names
+                    const japaneseMonths = ['1月', '2月', '3月', '4月', '5月', '6月', 
+                                          '7月', '8月', '9月', '10月', '11月', '12月'];
+                    
+                    // English month names
+                    const englishMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    
+                    months.push({
+                        key: monthKey,
+                        display: japaneseMonths[month - 1],
+                        english: englishMonths[month - 1],
+                        year: year,
+                        month: month,
+                        fullDate: `${year}/${String(month).padStart(2, '0')}/01`
+                    });
+                    
+                    console.log(`📅 Generated month ${i + 1}: key="${monthKey}", display="${japaneseMonths[month - 1]}"`);
+                }
+                
+                this.months = months;
+                console.log('📅 Total months generated:', months.length);
+                return months;
+            }
+
+            // Load user authentication
+            async loadUserInfo() {
+                try {
+                    const response = await fetch('/api/user-info');
+                    if (response.ok) {
+                        const userInfo = await response.json();
+                        this.currentUser = userInfo;
+                        this.userPermissions = userInfo.permissions;
+                        
+                        this.updateUIForPermissions();
+                        this.updateUserDisplay(userInfo);
+                        
+                        return userInfo;
+                    } else {
+                        window.location.href = '/';
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('Error loading user info:', error);
+                    this.showMessage('Failed to load user information', 'error');
+                    return null;
+                }
+            }
+
+            updateUserDisplay(userInfo) {
+                const userDisplay = document.getElementById('userDisplay');
+                if (userDisplay) {
+                    const roleClass = userInfo.role === 'admin' ? 'admin' : 'user';
+                    const roleText = userInfo.role === 'admin' ? 'ADMIN' : 'VIEW ONLY';
+                    userDisplay.innerHTML = `
+                        ${userInfo.username}
+                        <span class="user-role ${roleClass}">${roleText}</span>
+                    `;
+                }
+            }
+
+            updateUIForPermissions() {
+                const adminElements = document.querySelectorAll('.admin-only');
+                const readOnlyNotice = document.getElementById('readOnlyNotice');
+
+                if (!this.userPermissions.canEdit) {
+                    adminElements.forEach(element => {
+                        element.classList.add('disabled');
+                        if (element.tagName === 'BUTTON') {
+                            element.disabled = true;
+                        }
+                    });
+                    
+                    if (readOnlyNotice) readOnlyNotice.classList.add('show');
+                } else {
+                    adminElements.forEach(element => {
+                        element.classList.remove('disabled');
+                        if (element.tagName === 'BUTTON') {
+                            element.disabled = false;
+                        }
+                    });
+                    
+                    if (readOnlyNotice) readOnlyNotice.classList.remove('show');
+                }
+            }
+
+            // ENHANCED - Load forecast data from API with better debugging
+            async loadForecastData() {
+                try {
+                    this.showLoading(true);
+                    
+                    const response = await fetch('/api/forecasts');
+                    
+                    if (response.status === 401) {
+                        this.showMessage('Session expired. Please log in again.', 'error');
+                        setTimeout(() => window.location.href = '/', 2000);
+                        return;
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const forecasts = await response.json();
+                    console.log('📊 Raw forecast data from API:', forecasts);
+                    console.log('📊 Forecast data count:', forecasts.length);
+                    
+                    // Convert array to object for easier lookup with enhanced debugging
+                    this.forecastData = {};
+                    forecasts.forEach((forecast, index) => {
+                        const key = `${forecast.drawing_number}-${forecast.month_date}`;
+                        this.forecastData[key] = forecast.quantity;
+                        console.log(`✅ Loaded forecast ${index + 1}: ${key} = ${forecast.quantity}`);
+                    });
+                    
+                    console.log('📊 Processed forecast data object keys:', Object.keys(this.forecastData));
+                    console.log('📊 Total forecast entries loaded:', Object.keys(this.forecastData).length);
+                    
+                    this.renderForecastTable();
+                    this.updateSummary();
+                    this.clearChangedCells();
+                    
+                } catch (error) {
+                    this.showMessage('Failed to load forecast data: ' + error.message, 'error');
+                    console.error('Error loading forecast data:', error);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            // Render the forecast table
+            renderForecastTable() {
+                const container = document.getElementById('forecastTableContainer');
+                const recordCount = document.getElementById('recordCount');
+                
+                this.generateMonths();
+                
+                if (recordCount) {
+                    recordCount.textContent = `${this.products.length} products × ${this.months.length} months`;
+                }
+
+                console.log('🎨 Rendering forecast table...');
+                console.log('📅 Generated months:', this.months);
+                console.log('📊 Current forecast data:', this.forecastData);
+
+                const tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="drawing-header">品番<br><small>Drawing Number</small></th>
+                                <th class="product-header">品名<br><small>Product Name</small></th>
+                                ${this.months.map(month => `
+                                    <th class="month-header">
+                                        <div class="month-japanese">${month.display}</div>
+                                        <div class="month-english">${month.english} ${month.year}</div>
+                                    </th>
+                                `).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${this.products.map(product => `
+                                <tr>
+                                    <td class="drawing-cell"><strong>${product.drawing}</strong></td>
+                                    <td class="product-cell">${product.name}</td>
+                                    ${this.months.map(month => {
+                                        const key = `${product.drawing}-${month.key}`;
+                                        const value = this.forecastData[key] || '';
+                                        console.log(`🔍 Cell ${key}: stored=${this.forecastData[key]}, display=${value}`);
+                                        return `
+                                            <td>
+                                                <input type="number" 
+                                                       class="forecast-input" 
+                                                       value="${value}"
+                                                       data-drawing="${product.drawing}"
+                                                       data-month="${month.key}"
+                                                       data-key="${key}"
+                                                       placeholder="0"
+                                                       min="0"
+                                                       ${!this.userPermissions.canEdit ? 'disabled' : ''}
+                                                       onchange="forecastManager.onCellChange(this)"
+                                                       onblur="forecastManager.onCellBlur(this)">
+                                            </td>
+                                        `;
+                                    }).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                container.innerHTML = tableHTML;
+                console.log('✅ Forecast table rendered');
+            }
+
+            // Handle cell value changes
+            onCellChange(input) {
+                const key = input.dataset.key;
+                const value = parseInt(input.value) || 0;
+                
+                // Mark as changed
+                input.classList.add('changed');
+                this.changedCells.add(key);
+                
+                // Update local data
+                this.forecastData[key] = value;
+                
+                this.updateSummary();
+                this.updateSaveStatus('unsaved', 'Unsaved changes');
+            }
+
+            onCellBlur(input) {
+                // Auto-save individual cell if user has permission and auto-save is enabled
+                if (this.userPermissions.canEdit) {
+                    // Optional: implement auto-save for individual cells
+                }
+            }
+
+            // Save all forecast changes
+            async saveAllForecasts() {
+                if (!this.userPermissions.canEdit) {
+                    this.showMessage('You do not have permission to save changes', 'error');
+                    return;
+                }
+
+                if (this.changedCells.size === 0) {
+                    this.showMessage('No changes to save', 'warning');
+                    return;
+                }
+
+                try {
+                    this.updateSaveStatus('saving', 'Saving...');
+                    this.showLoading(true);
+                    
+                    const forecasts = [];
+                    this.changedCells.forEach(key => {
+                        const [drawingNumber, monthDate] = key.split('-');
+                        forecasts.push({
+                            drawingNumber: drawingNumber,
+                            monthDate: monthDate,
+                            quantity: this.forecastData[key] || 0
+                        });
+                    });
+
+                    const response = await fetch('/api/forecasts/batch', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ forecasts })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showMessage(`Saved ${result.saved} forecast entries successfully`, 'success');
+                        this.clearChangedCells();
+                        this.updateSaveStatus('saved', 'All changes saved');
+                        this.updateSummary();
+                    } else {
+                        this.showMessage(result.error || 'Failed to save forecasts', 'error');
+                        this.updateSaveStatus('error', 'Save failed');
+                    }
+                } catch (error) {
+                    this.showMessage('Failed to save forecasts: ' + error.message, 'error');
+                    this.updateSaveStatus('error', 'Save failed');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            // Clear all forecast data
+            async clearAllForecasts() {
+                if (!this.userPermissions.canEdit) {
+                    this.showMessage('You do not have permission to clear data', 'error');
+                    return;
+                }
+
+                if (!confirm('Are you sure you want to clear all forecast data? This action cannot be undone.')) {
+                    return;
+                }
+
+                try {
+                    this.showLoading(true);
+                    
+                    // Clear all inputs
+                    const inputs = document.querySelectorAll('.forecast-input');
+                    inputs.forEach(input => {
+                        input.value = '';
+                        input.classList.add('changed');
+                        const key = input.dataset.key;
+                        this.changedCells.add(key);
+                        this.forecastData[key] = 0;
+                    });
+
+                    this.updateSummary();
+                    this.updateSaveStatus('unsaved', 'Ready to save cleared data');
+                    this.showMessage('All forecast data cleared. Click "Save All Changes" to confirm.', 'warning');
+                    
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            // Clear changed cells tracking
+            clearChangedCells() {
+                this.changedCells.clear();
+                
+                // Remove changed styling from inputs
+                const inputs = document.querySelectorAll('.forecast-input.changed');
+                inputs.forEach(input => {
+                    input.classList.remove('changed');
+                });
+            }
+
+            // Update summary statistics
+            updateSummary() {
+                const totalForecast = Object.values(this.forecastData).reduce((sum, val) => sum + (val || 0), 0);
+                
+                // Calculate next month total
+                const nextMonth = this.months[1]; // Next month after current
+                let nextMonthTotal = 0;
+                if (nextMonth) {
+                    this.products.forEach(product => {
+                        const key = `${product.drawing}-${nextMonth.key}`;
+                        nextMonthTotal += this.forecastData[key] || 0;
+                    });
+                }
+
+                // Update UI
+                document.getElementById('totalForecast').textContent = totalForecast.toLocaleString();
+                document.getElementById('nextMonthTotal').textContent = nextMonthTotal.toLocaleString();
+                document.getElementById('changedCells').textContent = this.changedCells.size;
+                
+                // Update last saved time
+                if (this.changedCells.size === 0) {
+                    const now = new Date();
+                    document.getElementById('lastSaved').textContent = now.toLocaleTimeString();
+                }
+            }
+
+            // Update save status
+            updateSaveStatus(status, message) {
+                const saveStatus = document.getElementById('saveStatus');
+                if (saveStatus) {
+                    saveStatus.textContent = message;
+                    saveStatus.className = 'save-status ' + status;
+                }
+            }
+
+            // Utility methods
+            showLoading(show) {
+                const loading = document.getElementById('loadingIndicator');
+                if (loading) {
+                    loading.style.display = show ? 'block' : 'none';
+                }
+            }
+
+            showMessage(message, type) {
+                const container = document.getElementById('messageContainer');
+                if (!container) return;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+                messageDiv.textContent = message;
+                
+                container.appendChild(messageDiv);
+                
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 5000);
+            }
+
+            async logout() {
+                try {
+                    await fetch('/api/logout', { method: 'POST' });
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    window.location.href = '/';
+                }
+            }
+
+            // ENHANCED Debug function to check data consistency
+            async showDebugInfo() {
+                try {
+                    const response = await fetch('/api/debug/forecasts');
+                    if (response.ok) {
+                        const debugData = await response.json();
+                        console.log('🔍 DEBUG: Raw database data:', debugData);
+                        
+                        alert(`Debug Info:
+📊 Data source: ${debugData.source}
+📊 Total records: ${debugData.count}
+📊 Sample data: ${JSON.stringify(debugData.data.slice(0, 3), null, 2)}
+
+📊 Local forecast data keys: ${Object.keys(this.forecastData).length}
+📊 Generated months: ${this.months.length}
+
+Check console for detailed logs.`);
+                    } else {
+                        alert('Failed to fetch debug info');
+                    }
+                } catch (error) {
+                    console.error('Debug error:', error);
+                    alert('Debug error: ' + error.message);
+                }
+            }
+
+            // ENHANCED Debug helper function
+            debugForecastData() {
+                console.log('🔍 FORECAST DEBUG INFORMATION:');
+                console.log('📊 Current forecast data object:', this.forecastData);
+                console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
+                
+                // Show all forecast keys
+                Object.keys(this.forecastData).forEach(key => {
+                    console.log(`🔍 Forecast entry: ${key} = ${this.forecastData[key]}`);
+                });
+                
+                // Generate expected keys for comparison
+                const now = new Date();
+                const products = [
+                    'PP4166-4681P003', 'PP4166-4681P004', 'PP4166-4726P003', 
+                    'PP4166-4726P004', 'PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003'
+                ];
+                
+                console.log('🔍 Expected forecast keys for next 6 months:');
+                for (let i = 0; i < 6; i++) {
+                    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                    const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
+                    
+                    products.forEach(product => {
+                        const expectedKey = `${product}-${monthKey}`;
+                        const hasData = this.forecastData.hasOwnProperty(expectedKey);
+                        const value = this.forecastData[expectedKey] || 0;
+                        console.log(`🔍 ${expectedKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
+                    });
+                }
+            }
+
+            // Initialize the forecast manager
+            async initialize() {
+                try {
+                    console.log('🚀 Initializing Forecast Manager...');
+                    
+                    await this.loadUserInfo();
+                    await this.loadForecastData();
+                    
+                    // Auto-refresh every 5 minutes
+                    setInterval(() => {
+                        if (this.changedCells.size === 0) {
+                            this.loadForecastData();
+                        }
+                    }, 300000);
+                    
+                    console.log('✅ Forecast Manager initialized successfully');
+                } catch (error) {
+                    console.error('❌ Failed to initialize forecast manager:', error);
+                    this.showMessage('Failed to initialize forecast manager', 'error');
+                }
+            }
+        }
+
+        // Create global instance
+        const forecastManager = new ForecastManager();
+
+        // Global functions
+        function saveAllForecasts() {
+            forecastManager.saveAllForecasts();
+        }
+
+        function clearAllForecasts() {
+            forecastManager.clearAllForecasts();
+        }
+
+        function loadForecastData() {
+            forecastManager.loadForecastData();
+        }
+
+        function logout() {
+            forecastManager.logout();
+        }
+
+        function showDebugInfo() {
+            forecastManager.showDebugInfo();
+        }
+
+        // Add debug testing functions to window
+        window.testForecastDebug = function() {
+            forecastManager.debugForecastData();
+        };
+
+        window.testSessionDebug = async function() {
+            try {
+                const response = await fetch('/api/user-info');
+                const data = await response.json();
+                console.log('🔍 Session debug - User info:', data);
+                return data;
+            } catch (error) {
+                console.log('❌ Session debug failed:', error);
+                return null;
+            }
+        };
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            forecastManager.initialize();
+        });
+    </script>
 </body>
 </html>
