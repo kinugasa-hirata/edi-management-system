@@ -30,12 +30,16 @@ if (isProduction) {
 
 // In-memory storage for local development
 let inMemoryData = [];
+let inMemoryForecasts = [];
 let nextId = 1;
+let nextForecastId = 1;
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static('public'));
+
+// Static file serving - FIXED PATH
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Session configuration
 app.use(session({
@@ -67,8 +71,8 @@ const upload = multer({
 
 // Drawing Number priority order
 const DRAWING_NUMBER_ORDER = [
-  'PP4166-4681P003', // Product name: ｱｯﾊﾟﾌﾚｰﾑ
-  'PP4166-4681P004', // Product name: ｱｯﾊﾟﾌﾚｰﾑ
+  'PP4166-4681P003', // Product name: ｱｯﾊﾟﾌﾞﾚｰﾑ
+  'PP4166-4681P004', // Product name: ｱｯﾊﾟﾌﾞﾚｰﾑ
   'PP4166-4726P003', // Product name: ﾄｯﾌﾟﾌﾟﾚｰﾄ
   'PP4166-4726P004', // Product name: ﾄｯﾌﾟﾌﾟﾚｰﾄ
   'PP4166-4731P002', // Product name: ﾐﾄﾞﾙﾌﾚｰﾑ
@@ -109,6 +113,7 @@ function requireAdminAuth(req, res, next) {
 async function initializeDatabase() {
   if (isProduction && sql) {
     try {
+      // Create EDI orders table
       const createTableQuery = `
         CREATE TABLE IF NOT EXISTS edi_orders (
           id SERIAL PRIMARY KEY,
@@ -124,13 +129,33 @@ async function initializeDatabase() {
       `;
       await sql.query(createTableQuery);
       
+      // Create forecasts table
+      const createForecastTableQuery = `
+        CREATE TABLE IF NOT EXISTS forecasts (
+          id SERIAL PRIMARY KEY,
+          drawing_number VARCHAR(100) NOT NULL,
+          month_date VARCHAR(10) NOT NULL,
+          quantity INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(drawing_number, month_date)
+        )
+      `;
+      await sql.query(createForecastTableQuery);
+      
       const createIndexQuery = `
         CREATE INDEX IF NOT EXISTS idx_edi_orders_drawing_number 
         ON edi_orders(drawing_number)
       `;
       await sql.query(createIndexQuery);
       
-      console.log('✅ Vercel Postgres table initialized');
+      const createForecastIndexQuery = `
+        CREATE INDEX IF NOT EXISTS idx_forecasts_drawing_month 
+        ON forecasts(drawing_number, month_date)
+      `;
+      await sql.query(createForecastIndexQuery);
+      
+      console.log('✅ Vercel Postgres tables initialized');
     } catch (error) {
       console.error('❌ Database initialization error:', error);
     }
@@ -154,6 +179,7 @@ function parseDate(dateString) {
   }
 }
 
+// EDI Orders functions
 async function getAllOrders() {
   console.log('🔍 getAllOrders called');
   
@@ -285,6 +311,97 @@ async function addOrder(orderData) {
   }
 }
 
+// Forecast functions
+async function getAllForecasts() {
+  console.log('🔍 getAllForecasts called');
+  
+  if (isProduction && sql) {
+    try {
+      const selectQuery = `
+        SELECT * FROM forecasts 
+        ORDER BY 
+          CASE drawing_number
+            WHEN 'PP4166-4681P003' THEN 1
+            WHEN 'PP4166-4681P004' THEN 2
+            WHEN 'PP4166-4726P003' THEN 3
+            WHEN 'PP4166-4726P004' THEN 4
+            WHEN 'PP4166-4731P002' THEN 5
+            WHEN 'PP4166-7106P001' THEN 6
+            WHEN 'PP4166-7106P003' THEN 7
+            ELSE 8
+          END,
+          month_date ASC
+      `;
+      const result = await sql.query(selectQuery);
+      console.log('✅ Forecast query result:', result.rows.length, 'records');
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Error fetching forecasts from Postgres:', error);
+      return [];
+    }
+  } else {
+    // Sort in-memory forecast data
+    const sorted = inMemoryForecasts.sort((a, b) => {
+      const aIndex = DRAWING_NUMBER_ORDER.indexOf(a.drawing_number);
+      const bIndex = DRAWING_NUMBER_ORDER.indexOf(b.drawing_number);
+      const aPriority = aIndex === -1 ? 999 : aIndex;
+      const bPriority = bIndex === -1 ? 999 : bIndex;
+      
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+      
+      return a.month_date.localeCompare(b.month_date);
+    });
+    
+    console.log('📊 In-memory forecast data:', sorted.length, 'records');
+    return sorted;
+  }
+}
+
+async function saveForecast(drawingNumber, monthDate, quantity) {
+  console.log('💾 saveForecast called:', { drawingNumber, monthDate, quantity });
+  
+  if (isProduction && sql) {
+    try {
+      const upsertQuery = `
+        INSERT INTO forecasts (drawing_number, month_date, quantity, updated_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (drawing_number, month_date)
+        DO UPDATE SET quantity = $3, updated_at = CURRENT_TIMESTAMP
+      `;
+      await sql.query(upsertQuery, [drawingNumber, monthDate, quantity]);
+      console.log('✅ Forecast saved to Postgres');
+      return true;
+    } catch (error) {
+      console.error('❌ Error saving forecast to Postgres:', error);
+      return false;
+    }
+  } else {
+    // Handle in-memory storage
+    const existingIndex = inMemoryForecasts.findIndex(f => 
+      f.drawing_number === drawingNumber && f.month_date === monthDate
+    );
+    
+    if (existingIndex >= 0) {
+      inMemoryForecasts[existingIndex].quantity = quantity;
+      inMemoryForecasts[existingIndex].updated_at = new Date().toISOString();
+    } else {
+      inMemoryForecasts.push({
+        id: nextForecastId++,
+        drawing_number: drawingNumber,
+        month_date: monthDate,
+        quantity: quantity,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
+    
+    console.log('✅ Forecast saved to memory');
+    return true;
+  }
+}
+
 // Utility functions
 function cleanProductName(productName) {
   if (!productName) return '';
@@ -322,7 +439,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Login page
+// Login page - FIXED: Use path.join for file serving
 app.get('/', (req, res) => {
   try {
     if (req.session.user) {
@@ -336,7 +453,7 @@ app.get('/', (req, res) => {
   }
 });
 
-// Dashboard page
+// Dashboard page - FIXED: Use path.join for file serving
 app.get('/dashboard', enhancedRequireAuth, (req, res) => {
   try {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
@@ -346,7 +463,17 @@ app.get('/dashboard', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// Updated login endpoint with simple authentication (replace existing login endpoint in server.js)
+// Forecast page
+app.get('/forecast', enhancedRequireAuth, (req, res) => {
+  try {
+    res.sendFile(path.join(__dirname, 'public', 'forecast.html'));
+  } catch (error) {
+    console.error('❌ Error in forecast route:', error);
+    res.status(500).send('Server error');
+  }
+});
+
+// Updated login endpoint with simple authentication
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body;
@@ -430,6 +557,85 @@ app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching EDI data:', error);
     res.status(500).json({ error: 'Failed to fetch data' });
+  }
+});
+
+// Get all forecast data
+app.get('/api/forecasts', enhancedRequireAuth, async (req, res) => {
+  console.log('🌐 GET /api/forecasts called');
+  
+  try {
+    const forecasts = await getAllForecasts();
+    console.log('📤 Sending forecast response with', forecasts.length, 'records');
+    res.json(forecasts);
+  } catch (error) {
+    console.error('❌ Error fetching forecast data:', error);
+    res.status(500).json({ error: 'Failed to fetch forecast data' });
+  }
+});
+
+// Save forecast data (admin only)
+app.post('/api/forecasts', requireAdminAuth, async (req, res) => {
+  console.log('🌐 POST /api/forecasts called');
+  
+  try {
+    const { drawingNumber, monthDate, quantity } = req.body;
+    
+    if (!drawingNumber || !monthDate || quantity === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const success = await saveForecast(drawingNumber, monthDate, parseInt(quantity) || 0);
+    
+    if (success) {
+      res.json({ success: true, message: 'Forecast saved successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to save forecast' });
+    }
+  } catch (error) {
+    console.error('❌ Error saving forecast:', error);
+    res.status(500).json({ error: 'Failed to save forecast' });
+  }
+});
+
+// Batch save forecasts (admin only)
+app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
+  console.log('🌐 POST /api/forecasts/batch called');
+  
+  try {
+    const { forecasts } = req.body;
+    
+    if (!Array.isArray(forecasts)) {
+      return res.status(400).json({ error: 'Forecasts must be an array' });
+    }
+    
+    let saved = 0;
+    let errors = 0;
+    
+    for (const forecast of forecasts) {
+      try {
+        const success = await saveForecast(
+          forecast.drawingNumber, 
+          forecast.monthDate, 
+          parseInt(forecast.quantity) || 0
+        );
+        if (success) saved++;
+        else errors++;
+      } catch (error) {
+        errors++;
+        console.error('❌ Error saving individual forecast:', error);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Batch save completed: ${saved} saved, ${errors} errors`,
+      saved,
+      errors
+    });
+  } catch (error) {
+    console.error('❌ Error in batch save:', error);
+    res.status(500).json({ error: 'Failed to batch save forecasts' });
   }
 });
 
@@ -687,6 +893,7 @@ async function startServer() {
     if (!isProduction) {
       app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📁 Static files served from: ${path.join(__dirname, 'public')}`);
       });
     }
     

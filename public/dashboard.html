@@ -18,6 +18,13 @@
             <p>Electronic Data Interchange Order Management</p>
         </div>
 
+        <!-- Navigation Bar -->
+        <div class="navigation-bar" style="background: #f8fafc; padding: 15px 30px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 20px;">
+            <a href="/dashboard" class="nav-link active" style="color: #4f46e5; background: white; text-decoration: none; font-weight: 500; padding: 8px 16px; border-radius: 6px;">📊 Dashboard</a>
+            <a href="/forecast" class="nav-link" style="color: #6b7280; text-decoration: none; font-weight: 500; padding: 8px 16px; border-radius: 6px; transition: all 0.3s ease;">📈 Forecast</a>
+            <button class="btn btn-logout" style="margin-left: auto;">🚪 Logout</button>
+        </div>
+
         <div class="controls">
             <input type="file" id="fileInput" accept=".csv,.tsv,.EDIdat" />
             <button class="btn btn-primary admin-only" id="chooseFileBtn">
@@ -32,9 +39,6 @@
             <div class="read-only-notice" id="readOnlyNotice">
                 👁️ View-Only Mode - Contact admin for edit access
             </div>
-            <button class="btn btn-logout">
-                🚪 Logout
-            </button>
         </div>
 
         <div class="content">
@@ -320,18 +324,7 @@
         </div>
     </div>
 
-    <!-- JavaScript Components (load in order) -->
-    <script src="/js/ui-utils.js"></script>
-    <script src="/js/auth-manager.js"></script>
-    <script src="/js/chart-manager.js"></script>
-    <script src="/js/data-manager.js"></script>
-    
-    <!-- Initialize Dashboard -->
-    <script>
-        // Initialize the dashboard when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            UIUtils.initialize();
-        });
-    </script>
+    <!-- Single consolidated JavaScript file -->
+    <script src="/js/dashboard-app.js"></script>
 </body>
 </html>
