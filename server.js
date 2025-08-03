@@ -698,22 +698,29 @@ app.get('/api/forecasts', enhancedRequireAuth, async (req, res) => {
   }
 });
 
-// Save forecast data (admin only)
+// 🔧 FIXED - Save forecast data (admin only) - Fixed field names
 app.post('/api/forecasts', requireAdminAuth, async (req, res) => {
   console.log('🌐 POST /api/forecasts called');
+  console.log('📊 Request body:', req.body);
   
   try {
-    const { drawingNumber, monthDate, quantity } = req.body;
+    // 🔧 FIXED: Use correct field names from frontend
+    const { drawing_number, month_date, quantity } = req.body;
     
-    if (!drawingNumber || !monthDate || quantity === undefined) {
+    console.log('🔍 Extracted fields:', { drawing_number, month_date, quantity });
+    
+    if (!drawing_number || !month_date || quantity === undefined) {
+      console.log('❌ Missing required fields:', { drawing_number, month_date, quantity });
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
-    const success = await saveForecast(drawingNumber, monthDate, parseInt(quantity) || 0);
+    const success = await saveForecast(drawing_number, month_date, parseInt(quantity) || 0);
     
     if (success) {
+      console.log('✅ Individual forecast save successful');
       res.json({ success: true, message: 'Forecast saved successfully' });
     } else {
+      console.log('❌ Individual forecast save failed');
       res.status(500).json({ error: 'Failed to save forecast' });
     }
   } catch (error) {
@@ -722,7 +729,7 @@ app.post('/api/forecasts', requireAdminAuth, async (req, res) => {
   }
 });
 
-// Batch save forecasts (admin only)
+// 🔧 FIXED - Batch save forecasts (admin only) - Fixed field names
 app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
   console.log('🌐 POST /api/forecasts/batch called');
   
@@ -740,14 +747,22 @@ app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
     for (const forecast of forecasts) {
       try {
         console.log('💾 Processing forecast:', forecast);
+        
+        // 🔧 FIXED: Use correct field names from frontend
+        // Frontend sends: drawing_number, month_date, quantity
         const success = await saveForecast(
-          forecast.drawingNumber, 
-          forecast.monthDate, 
+          forecast.drawing_number,  // ✅ Fixed from forecast.drawingNumber
+          forecast.month_date,      // ✅ Fixed from forecast.monthDate  
           parseInt(forecast.quantity) || 0
         );
+        
         if (success) {
           saved++;
-          console.log('✅ Saved forecast:', forecast);
+          console.log('✅ Saved forecast:', {
+            drawing_number: forecast.drawing_number,
+            month_date: forecast.month_date,
+            quantity: forecast.quantity
+          });
         } else {
           errors++;
           console.log('❌ Failed to save forecast:', forecast);
