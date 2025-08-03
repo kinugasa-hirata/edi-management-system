@@ -359,13 +359,13 @@ class EDIDashboard {
         this.updateAllProductCharts();
     }
 
-    // ============ EXCEL EXPORT FUNCTIONALITY ============
-    async exportToExcel() {
+    // ============ FIXED EXPORT FUNCTIONALITY ============
+    async exportToCSV() {
         try {
-            console.log('📊 Starting Excel export...');
-            this.showMessage('Preparing Excel export...', 'info');
+            console.log('📊 Starting CSV export...');
+            this.showMessage('Preparing CSV export...', 'info');
             
-            const response = await fetch('/api/export/excel', {
+            const response = await fetch('/api/export/csv', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -387,7 +387,7 @@ class EDIDashboard {
             // Generate filename with current date
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-            a.download = `EDI_Orders_${dateStr}.xlsx`;
+            a.download = `EDI_Orders_${dateStr}.csv`;
             
             // Trigger download
             document.body.appendChild(a);
@@ -395,12 +395,56 @@ class EDIDashboard {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            this.showMessage('Excel file downloaded successfully!', 'success');
-            console.log('✅ Excel export completed');
+            this.showMessage('CSV file downloaded successfully! Opens in Excel.', 'success');
+            console.log('✅ CSV export completed');
             
         } catch (error) {
-            console.error('❌ Excel export error:', error);
-            this.showMessage('Failed to export Excel file: ' + error.message, 'error');
+            console.error('❌ CSV export error:', error);
+            this.showMessage('Failed to export CSV file: ' + error.message, 'error');
+        }
+    }
+
+    async exportToJSON() {
+        try {
+            console.log('📊 Starting JSON export...');
+            this.showMessage('Preparing JSON export...', 'info');
+            
+            const response = await fetch('/api/export/json', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Export failed: ${response.status}`);
+            }
+            
+            // Get the blob from response
+            const blob = await response.blob();
+            
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Generate filename with current date
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+            a.download = `EDI_Orders_${dateStr}.json`;
+            
+            // Trigger download
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            this.showMessage('JSON file downloaded successfully!', 'success');
+            console.log('✅ JSON export completed');
+            
+        } catch (error) {
+            console.error('❌ JSON export error:', error);
+            this.showMessage('Failed to export JSON file: ' + error.message, 'error');
         }
     }
 
@@ -1165,6 +1209,12 @@ class EDIDashboard {
             saveAllBtn.onclick = () => this.saveAllChanges();
         }
 
+        // Refresh button
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.onclick = () => this.loadData();
+        }
+
         // Logout button
         const logoutBtns = document.querySelectorAll('.btn-logout');
         logoutBtns.forEach(btn => {
@@ -1230,10 +1280,19 @@ function logout() {
     ediDashboard.logout();
 }
 
-// ============ GLOBAL EXCEL EXPORT FUNCTION ============
-window.exportToExcel = function() {
+// ============ GLOBAL EXPORT FUNCTIONS ============
+window.exportToCSV = function() {
     if (window.ediDashboard) {
-        window.ediDashboard.exportToExcel();
+        window.ediDashboard.exportToCSV();
+    } else {
+        console.error('❌ EDI Dashboard not found');
+        alert('Export functionality not available');
+    }
+};
+
+window.exportToJSON = function() {
+    if (window.ediDashboard) {
+        window.ediDashboard.exportToJSON();
     } else {
         console.error('❌ EDI Dashboard not found');
         alert('Export functionality not available');
@@ -1280,6 +1339,9 @@ window.testSessionDebug = async function() {
         return null;
     }
 };
+
+// Make dashboard available globally
+window.ediDashboard = ediDashboard;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {

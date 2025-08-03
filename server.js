@@ -14,16 +14,6 @@ const PORT = process.env.PORT || 3000;
 const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
 let sql = null;
 
-// 🔧 NEW - Excel functionality
-let ExcelJS;
-try {
-  ExcelJS = require('exceljs');
-  console.log('✅ ExcelJS available for Excel operations');
-} catch (error) {
-  console.log('⚠️ ExcelJS not found - Excel features will be limited');
-  ExcelJS = null;
-}
-
 // Initialize database connection
 if (isProduction) {
   try {
@@ -653,95 +643,100 @@ app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   }
 });
 
-// 🔧 NEW - Excel export endpoint
-app.get('/api/export/excel', enhancedRequireAuth, async (req, res) => {
-  console.log('📊 Excel export requested');
+// 🔧 FIXED - CSV export endpoint (no dependencies required)
+app.get('/api/export/csv', enhancedRequireAuth, async (req, res) => {
+  console.log('📊 CSV export requested');
   
   try {
-    if (!ExcelJS) {
-      return res.status(500).json({ 
-        error: 'Excel functionality not available', 
-        message: 'ExcelJS not installed. Run: npm install exceljs' 
-      });
-    }
-    
     // Get all orders
     const orders = await getAllOrders();
-    console.log(`📊 Exporting ${orders.length} orders to Excel`);
+    console.log(`📊 Exporting ${orders.length} orders to CSV`);
     
-    // Create workbook and worksheet
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('EDI Orders');
-    
-    // Set up headers
-    worksheet.columns = [
-      { header: 'Order Number', key: 'order_number', width: 15 },
-      { header: 'Drawing Number', key: 'drawing_number', width: 18 },
-      { header: 'Product Name', key: 'product_name', width: 20 },
-      { header: 'Quantity', key: 'quantity', width: 10 },
-      { header: 'Delivery Date', key: 'delivery_date', width: 12 },
-      { header: 'Status', key: 'status', width: 20 },
-      { header: 'Created At', key: 'created_at', width: 18 },
-      { header: 'Updated At', key: 'updated_at', width: 18 }
+    // Create CSV headers
+    const headers = [
+      'Order Number',
+      'Drawing Number', 
+      'Product Name',
+      'Quantity',
+      'Delivery Date',
+      'Status',
+      'Created At',
+      'Updated At'
     ];
     
-    // Style headers
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF4F46E5' }
-    };
-    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    // Create CSV content
+    let csvContent = headers.join(',') + '\n';
     
     // Add data rows
     orders.forEach(order => {
-      worksheet.addRow({
+      const row = [
+        `"${order.order_number || ''}"`,
+        `"${order.drawing_number || ''}"`,
+        `"${order.product_name || ''}"`,
+        order.quantity || 0,
+        `"${order.delivery_date || ''}"`,
+        `"${(order.status || '').replace(/"/g, '""')}"`, // Escape quotes in status
+        `"${order.created_at ? new Date(order.created_at).toLocaleString() : ''}"`,
+        `"${order.updated_at ? new Date(order.updated_at).toLocaleString() : ''}"`
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+    
+    // Set response headers for CSV download
+    const fileName = `EDI_Orders_${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    // Add BOM for proper Excel UTF-8 handling
+    const BOM = '\uFEFF';
+    res.send(BOM + csvContent);
+    
+    console.log('✅ CSV export completed successfully');
+    
+  } catch (error) {
+    console.error('❌ CSV export error:', error);
+    res.status(500).json({ error: 'Failed to export CSV file', details: error.message });
+  }
+});
+
+// 🔧 ALTERNATIVE - JSON export for easy data access
+app.get('/api/export/json', enhancedRequireAuth, async (req, res) => {
+  console.log('📊 JSON export requested');
+  
+  try {
+    const orders = await getAllOrders();
+    
+    // Create formatted export data
+    const exportData = {
+      export_info: {
+        timestamp: new Date().toISOString(),
+        exported_by: req.session.user.username,
+        total_records: orders.length,
+        format: 'JSON'
+      },
+      orders: orders.map(order => ({
         order_number: order.order_number || '',
         drawing_number: order.drawing_number || '',
         product_name: order.product_name || '',
         quantity: order.quantity || 0,
         delivery_date: order.delivery_date || '',
         status: order.status || '',
-        created_at: order.created_at ? new Date(order.created_at).toLocaleString() : '',
-        updated_at: order.updated_at ? new Date(order.updated_at).toLocaleString() : ''
-      });
-    });
+        created_at: order.created_at,
+        updated_at: order.updated_at
+      }))
+    };
     
-    // Auto-fit columns
-    worksheet.columns.forEach(column => {
-      if (column.values) {
-        const maxLength = column.values.reduce((max, value) => {
-          const length = value ? value.toString().length : 0;
-          return Math.max(max, length);
-        }, 0);
-        column.width = Math.min(Math.max(maxLength + 2, 10), 50);
-      }
-    });
+    const fileName = `EDI_Orders_${new Date().toISOString().split('T')[0]}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     
-    // Add summary information
-    const summaryWorksheet = workbook.addWorksheet('Summary');
-    summaryWorksheet.addRow(['Export Summary']);
-    summaryWorksheet.addRow(['Total Orders:', orders.length]);
-    summaryWorksheet.addRow(['Export Date:', new Date().toLocaleString()]);
-    summaryWorksheet.addRow(['Exported By:', req.session.user.username]);
+    res.json(exportData);
     
-    // Generate buffer
-    const buffer = await workbook.xlsx.writeBuffer();
-    
-    // Set response headers
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="EDI_Orders_${new Date().toISOString().split('T')[0]}.xlsx"`);
-    res.setHeader('Content-Length', buffer.length);
-    
-    // Send the buffer
-    res.send(buffer);
-    
-    console.log('✅ Excel export completed successfully');
+    console.log('✅ JSON export completed successfully');
     
   } catch (error) {
-    console.error('❌ Excel export error:', error);
-    res.status(500).json({ error: 'Failed to export Excel file', details: error.message });
+    console.error('❌ JSON export error:', error);
+    res.status(500).json({ error: 'Failed to export JSON file', details: error.message });
   }
 });
 
@@ -886,204 +881,6 @@ app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
   } catch (error) {
     console.error('❌ Error in batch save:', error);
     res.status(500).json({ error: 'Failed to batch save forecasts' });
-  }
-});
-
-// 🔧 NEW - Import forecast data from Excel
-app.post('/api/import-forecast', requireAdminAuth, upload.single('forecastFile'), async (req, res) => {
-  console.log('📊 Forecast Excel import requested');
-  
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    if (!ExcelJS) {
-      return res.status(500).json({ 
-        error: 'Excel functionality not available', 
-        message: 'ExcelJS not installed. Run: npm install exceljs' 
-      });
-    }
-    
-    console.log('📄 Forecast file info:', {
-      filename: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype
-    });
-    
-    // Parse Excel file
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(req.file.buffer);
-    
-    // Get the first worksheet
-    const worksheet = workbook.worksheets[0];
-    if (!worksheet) {
-      return res.status(400).json({ error: 'No worksheet found in Excel file' });
-    }
-    
-    console.log('📊 Worksheet info:', {
-      name: worksheet.name,
-      rowCount: worksheet.rowCount,
-      columnCount: worksheet.columnCount
-    });
-    
-    // Find header row and month columns
-    let headerRow = null;
-    let drawingNumberCol = null;
-    let productNameCol = null;
-    const monthColumns = {};
-    
-    // Search for headers in first few rows
-    for (let rowNum = 1; rowNum <= Math.min(5, worksheet.rowCount); rowNum++) {
-      const row = worksheet.getRow(rowNum);
-      let foundDrawing = false;
-      let foundProduct = false;
-      
-      row.eachCell((cell, colNumber) => {
-        const cellValue = cell.value ? cell.value.toString().toLowerCase().trim() : '';
-        
-        // Look for drawing number column
-        if (cellValue.includes('drawing') || cellValue.includes('図番') || cellValue.includes('品番')) {
-          drawingNumberCol = colNumber;
-          foundDrawing = true;
-        }
-        
-        // Look for product name column
-        if (cellValue.includes('product') || cellValue.includes('品名') || cellValue.includes('name')) {
-          productNameCol = colNumber;
-          foundProduct = true;
-        }
-        
-        // Look for month columns (various formats)
-        if (cellValue.match(/^\d{1,2}月$/) || // Japanese: 8月, 9月
-            cellValue.match(/^\d{4}\/\d{1,2}$/) || // 2025/8, 2025/9
-            cellValue.match(/^\d{1,2}\/\d{4}$/) || // 8/2025, 9/2025
-            cellValue.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i) || // English months
-            cellValue.match(/^\d{1,2}\/\d{1,2}$/)) { // MM/DD format
-          
-          // Convert to our standard MM/01 format
-          let standardMonth = null;
-          
-          if (cellValue.match(/^\d{1,2}月$/)) {
-            const month = parseInt(cellValue.replace('月', ''));
-            standardMonth = `${String(month).padStart(2, '0')}/01`;
-          } else if (cellValue.match(/^\d{4}\/\d{1,2}$/)) {
-            const month = parseInt(cellValue.split('/')[1]);
-            standardMonth = `${String(month).padStart(2, '0')}/01`;
-          } else if (cellValue.match(/^\d{1,2}\/\d{4}$/)) {
-            const month = parseInt(cellValue.split('/')[0]);
-            standardMonth = `${String(month).padStart(2, '0')}/01`;
-          } else if (cellValue.match(/^\d{1,2}\/\d{1,2}$/)) {
-            const month = parseInt(cellValue.split('/')[0]);
-            standardMonth = `${String(month).padStart(2, '0')}/01`;
-          }
-          
-          if (standardMonth) {
-            monthColumns[colNumber] = standardMonth;
-            console.log(`📅 Found month column: ${cellValue} -> ${standardMonth} (col ${colNumber})`);
-          }
-        }
-      });
-      
-      if (foundDrawing && foundProduct && Object.keys(monthColumns).length > 0) {
-        headerRow = rowNum;
-        break;
-      }
-    }
-    
-    if (!headerRow || !drawingNumberCol || Object.keys(monthColumns).length === 0) {
-      return res.status(400).json({ 
-        error: 'Invalid Excel format', 
-        details: 'Could not find drawing number column and month columns. Expected format: Drawing Number | Product Name | Month columns (8月, 9月, etc.)'
-      });
-    }
-    
-    console.log('✅ Excel structure detected:', {
-      headerRow,
-      drawingNumberCol,
-      productNameCol,
-      monthColumns: Object.keys(monthColumns).length
-    });
-    
-    // Process data rows
-    const forecasts = [];
-    let processedRows = 0;
-    let validForecasts = 0;
-    
-    for (let rowNum = headerRow + 1; rowNum <= worksheet.rowCount; rowNum++) {
-      const row = worksheet.getRow(rowNum);
-      const drawingNumber = row.getCell(drawingNumberCol).value;
-      
-      if (!drawingNumber || !drawingNumber.toString().startsWith('PP4166')) {
-        continue; // Skip rows without valid drawing numbers
-      }
-      
-      processedRows++;
-      
-      // Process each month column for this drawing number
-      Object.entries(monthColumns).forEach(([colNumber, monthDate]) => {
-        const quantityCell = row.getCell(parseInt(colNumber));
-        const quantity = quantityCell.value;
-        
-        if (quantity && !isNaN(parseFloat(quantity)) && parseFloat(quantity) > 0) {
-          forecasts.push({
-            drawing_number: drawingNumber.toString().trim(),
-            month_date: monthDate,
-            quantity: parseFloat(quantity)
-          });
-          validForecasts++;
-          console.log(`📊 Found forecast: ${drawingNumber} - ${monthDate} = ${quantity}`);
-        }
-      });
-    }
-    
-    console.log(`📊 Import summary: ${processedRows} rows processed, ${validForecasts} valid forecasts found`);
-    
-    if (forecasts.length === 0) {
-      return res.status(400).json({ 
-        error: 'No valid forecast data found',
-        details: `Processed ${processedRows} rows but found no valid forecast values`
-      });
-    }
-    
-    // Save forecasts to database
-    let saved = 0;
-    let errors = 0;
-    
-    for (const forecast of forecasts) {
-      try {
-        const success = await saveForecast(
-          forecast.drawing_number,
-          forecast.month_date,
-          forecast.quantity
-        );
-        if (success) {
-          saved++;
-        } else {
-          errors++;
-        }
-      } catch (error) {
-        errors++;
-        console.error('❌ Error saving forecast:', forecast, error);
-      }
-    }
-    
-    res.json({
-      success: true,
-      message: `Forecast import completed: ${saved} forecasts saved${errors > 0 ? `, ${errors} errors` : ''}`,
-      details: {
-        rowsProcessed: processedRows,
-        forecastsFound: validForecasts,
-        saved,
-        errors
-      }
-    });
-    
-    console.log(`✅ Forecast import completed: ${saved} saved, ${errors} errors`);
-    
-  } catch (error) {
-    console.error('❌ Forecast import error:', error);
-    res.status(500).json({ error: 'Import failed: ' + error.message });
   }
 });
 
