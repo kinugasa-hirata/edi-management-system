@@ -304,7 +304,7 @@
                     type="text" 
                     id="username" 
                     name="username" 
-                    placeholder="admin1234 or user5678" 
+                    placeholder="admin or user" 
                     required
                     autocomplete="username"
                 >
@@ -333,16 +333,16 @@
             <div class="user-types">
                 <div class="user-type admin">
                     <h5>🔑 Admin Access</h5>
-                    <p>Username: <span class="example">admin + 4 digits</span></p>
+                    <p>Username: <span class="example">admin</span></p>
                     <p>Can view and edit all data</p>
-                    <p>Examples: <span class="example">admin1234</span>, <span class="example">admin0000</span></p>
+                    <p>Full system access</p>
                 </div>
                 
                 <div class="user-type user">
                     <h5>👁️ View Only Access</h5>
-                    <p>Username: <span class="example">user + 4 digits</span></p>
+                    <p>Username: <span class="example">user</span></p>
                     <p>Can only view data, no editing</p>
-                    <p>Examples: <span class="example">user5678</span>, <span class="example">user1111</span></p>
+                    <p>Read-only dashboard access</p>
                 </div>
             </div>
             
@@ -352,10 +352,7 @@
 
     <script>
         function quickLogin(type) {
-            const randomNumber = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-            const username = `${type}${randomNumber}`;
-            
-            document.getElementById('username').value = username;
+            document.getElementById('username').value = type;
             document.getElementById('password').value = 'demo';
             
             // Auto-submit the form
@@ -371,11 +368,8 @@
             const loading = document.getElementById('loadingIndicator');
             
             // Validate username format before sending
-            const adminPattern = /^admin\d{4}$/;
-            const userPattern = /^user\d{4}$/;
-            
-            if (!adminPattern.test(username) && !userPattern.test(username)) {
-                showMessage('Username must be "admin" or "user" followed by exactly 4 digits (e.g., admin1234, user5678)', 'error');
+            if (username !== 'admin' && username !== 'user') {
+                showMessage('Username must be either "admin" or "user"', 'error');
                 return;
             }
             

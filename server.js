@@ -346,20 +346,17 @@ app.get('/dashboard', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// Updated login endpoint with role-based authentication
+// Updated login endpoint with simple authentication (replace existing login endpoint in server.js)
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body;
     console.log('🔑 Login attempt:', { username });
     
-    const adminPattern = /^admin\d{4}$/;
-    const userPattern = /^user\d{4}$/;
-    
     let userRole = null;
     
-    if (adminPattern.test(username)) {
+    if (username === 'admin') {
       userRole = 'admin';
-    } else if (userPattern.test(username)) {
+    } else if (username === 'user') {
       userRole = 'user';
     }
     
@@ -383,7 +380,7 @@ app.post('/api/login', (req, res) => {
       console.log('❌ Login failed for:', username);
       res.status(401).json({ 
         success: false, 
-        message: 'Invalid credentials. Username must be "admin" or "user" followed by 4 digits' 
+        message: 'Invalid credentials. Username must be "admin" or "user"' 
       });
     }
   } catch (error) {
