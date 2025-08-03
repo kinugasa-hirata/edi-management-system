@@ -7,38 +7,503 @@
     
     <!-- External CSS -->
     <link rel="stylesheet" href="/css/dashboard-styles.css">
+    <style>
+        /* Enhanced dashboard styles with export functionality */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-role {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .user-role.admin {
+            background: #dc2626;
+            color: white;
+        }
+
+        .user-role.user {
+            background: #059669;
+            color: white;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .import-controls, .export-controls, .save-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .export-controls {
+            border-left: 1px solid #e5e7eb;
+            padding-left: 20px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: 1px solid;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            border-color: #4338ca;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            border-color: #4b5563;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-success {
+            background: #059669;
+            border-color: #047857;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #047857;
+        }
+
+        .btn-logout {
+            background: #dc2626;
+            border-color: #b91c1c;
+            color: white;
+        }
+
+        .btn-logout:hover {
+            background: #b91c1c;
+        }
+
+        .admin-only.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .read-only-notice {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #92400e;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .read-only-notice.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .message.info {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            color: #1e40af;
+        }
+
+        .message.warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+        }
+
+        .data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .record-count {
+            background: #4f46e5;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            background: #f1f5f9;
+            color: #374151;
+        }
+
+        .tab-btn.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4338ca;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .product-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4f46e5;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .chart-container {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-svg {
+            width: 100%;
+            height: auto;
+        }
+
+        .chart-axis {
+            stroke: #9ca3af;
+            stroke-width: 1;
+        }
+
+        .chart-text {
+            fill: #374151;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .chart-label {
+            fill: #6b7280;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .no-data-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+        }
+
+        .no-data-state h3 {
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .status-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+
+        .status-input:disabled {
+            background: #f3f4f6;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .save-btn {
+            background: #059669;
+            border: 1px solid #047857;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .save-btn:hover {
+            background: #047857;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .steps {
+            margin-top: 30px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .step-number {
+            background: #4f46e5;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            
+            .export-controls {
+                border-left: none;
+                border-top: 1px solid #e5e7eb;
+                padding-left: 0;
+                padding-top: 15px;
+            }
+            
+            .import-controls, .export-controls, .save-controls {
+                justify-content: center;
+            }
+
+            .data-header {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab-btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            .product-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .user-info {
+                position: static;
+                justify-content: center;
+                margin-bottom: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div class="user-info" id="userInfo">
                 <span id="userDisplay">Loading...</span>
+                <button class="btn btn-logout" onclick="logout()">🚪 Logout</button>
             </div>
-            <h1>📊 EDI Management System</h1>
-            <p>Electronic Data Interchange Order Management</p>
-        </div>
-
-        <!-- Navigation Bar -->
-        <div class="navigation-bar" style="background: #f8fafc; padding: 15px 30px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 20px;">
-            <a href="/dashboard" class="nav-link active" style="color: #4f46e5; background: white; text-decoration: none; font-weight: 500; padding: 8px 16px; border-radius: 6px;">📊 Dashboard</a>
-            <a href="/forecast" class="nav-link" style="color: #6b7280; text-decoration: none; font-weight: 500; padding: 8px 16px; border-radius: 6px; transition: all 0.3s ease;">📈 Forecast</a>
-            <button class="btn btn-logout" style="margin-left: auto;">🚪 Logout</button>
-        </div>
-
-        <div class="controls">
-            <input type="file" id="fileInput" accept=".csv,.tsv,.EDIdat" />
-            <button class="btn btn-primary admin-only" id="chooseFileBtn">
-                📁 Choose EDI File
-            </button>
-            <button class="btn btn-secondary admin-only" id="importBtn" disabled>
-                📤 Import WebEDI Data
-            </button>
-            <button class="btn btn-success admin-only" id="saveAllBtn">
-                💾 Save All Changes
-            </button>
-            <div class="read-only-notice" id="readOnlyNotice">
-                👁️ View-Only Mode - Contact admin for edit access
-            </div>
+            <h1>📊 EDI Management Dashboard</h1>
+            <p>Real-time Order Tracking and Production Planning</p>
         </div>
 
         <div class="content">
@@ -48,283 +513,225 @@
                 Loading data...
             </div>
 
-            <!-- Always Visible Tab Navigation -->
-            <div class="tab-navigation" id="tabNavigation">
-                <button class="tab-btn active">📊 All Orders</button>
-                <button class="tab-btn" data-drawing="PP4166-4681P003">🔧 4681P003</button>
-                <button class="tab-btn" data-drawing="PP4166-4681P004">🔧 4681P004</button>
-                <button class="tab-btn" data-drawing="PP4166-4726P003">⚙️ 4726P003</button>
-                <button class="tab-btn" data-drawing="PP4166-4726P004">⚙️ 4726P004</button>
-                <button class="tab-btn" data-drawing="PP4166-4731P002">🔩 4731P002</button>
-                <button class="tab-btn" data-drawing="PP4166-7106P001">🔩 7106P001</button>
-                <button class="tab-btn" data-drawing="PP4166-7106P003">🔩 7106P003</button>
+            <!-- Enhanced Controls with Export -->
+            <div class="controls">
+                <!-- Import controls -->
+                <div class="import-controls">
+                    <input type="file" id="fileInput" accept=".csv,.txt,.xls,.xlsx" style="display: none;">
+                    <button class="btn btn-secondary admin-only" id="chooseFileBtn">📁 Choose EDI File</button>
+                    <button class="btn btn-primary admin-only" id="importBtn" disabled>📤 Import WebEDI Data</button>
+                </div>
+                
+                <!-- NEW: Export controls -->
+                <div class="export-controls">
+                    <button class="btn btn-success" id="exportBtn" onclick="exportToExcel()">
+                        📊 Export to Excel
+                    </button>
+                </div>
+                
+                <!-- Save controls -->
+                <div class="save-controls">
+                    <button class="btn btn-primary admin-only" id="saveAllBtn">💾 Save All Changes</button>
+                    <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh Data</button>
+                </div>
+                
+                <div class="read-only-notice" id="readOnlyNotice">
+                    👁️ View-Only Mode - Contact admin for edit access
+                </div>
             </div>
 
-            <!-- Main Dashboard Tab -->
+            <!-- Product Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showMainDashboard()">📋 All Orders</button>
+                <button class="tab-btn" data-drawing="PP4166-4681P003" onclick="showProductPage('PP4166-4681P003')">🔧 4681P003</button>
+                <button class="tab-btn" data-drawing="PP4166-4681P004" onclick="showProductPage('PP4166-4681P004')">🔧 4681P004</button>
+                <button class="tab-btn" data-drawing="PP4166-4726P003" onclick="showProductPage('PP4166-4726P003')">📱 4726P003</button>
+                <button class="tab-btn" data-drawing="PP4166-4726P004" onclick="showProductPage('PP4166-4726P004')">📱 4726P004</button>
+                <button class="tab-btn" data-drawing="PP4166-4731P002" onclick="showProductPage('PP4166-4731P002')">⚙️ 4731P002</button>
+                <button class="tab-btn" data-drawing="PP4166-7106P001" onclick="showProductPage('PP4166-7106P001')">⚙️ 7106P001</button>
+                <button class="tab-btn" data-drawing="PP4166-7106P003" onclick="showProductPage('PP4166-7106P003')">⚙️ 7106P003</button>
+            </div>
+
+            <!-- Main Dashboard -->
             <div id="mainDashboard" class="tab-content active">
                 <div class="data-header">
-                    <h2>EDI Orders Data</h2>
-                    <span class="record-count" id="recordCount">0 records</span>
+                    <h2>All EDI Orders</h2>
+                    <span class="record-count" id="recordCount">Loading...</span>
                 </div>
-
                 <div id="dataContainer">
                     <div class="empty-state">
                         <div class="icon">📊</div>
-                        <h3>No EDI Data Loaded</h3>
-                        <p id="emptyStateMessage">Import an EDI file to get started.</p>
-                        
-                        <div class="steps" id="getStartedSteps">
-                            <h4>Get started in 2 simple steps:</h4>
-                            <div class="step">
-                                <div class="step-number">1</div>
-                                <span>Click "📁 Choose EDI File" to upload your data</span>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">2</div>
-                                <span>Click "Import WebEDI Data" to load orders</span>
-                            </div>
-                        </div>
+                        <h3>Loading EDI Data</h3>
+                        <p>Please wait while we load your order information...</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Product Tabs Content -->
-            <div id="tabContent">
-                <!-- PP4166-4681P003 -->
-                <div class="tab-content" id="tab-PP4166-4681P003">
-                    <div class="product-header">
-                        <h2>🔧 PP4166-4681P003</h2>
-                        <p>ｱｯﾊﾟﾌﾞﾚｰﾑ</p>
+            <!-- Product-specific tabs -->
+            <div id="tab-PP4166-4681P003" class="tab-content">
+                <div class="data-header">
+                    <h2>🔧 PP4166-4681P003 - ｱｯﾊﾟﾌﾞﾚｰﾑ</h2>
+                </div>
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-quantity-PP4166-4681P003">0</div>
+                        <div class="stat-label">Total Quantity</div>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4681P003">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4681P003">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4681P003">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders-PP4166-4681P003">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4681P003">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="next-delivery-PP4166-4681P003">None</div>
+                        <div class="stat-label">Next Delivery</div>
                     </div>
                 </div>
+                <div class="chart-container">
+                    <div id="chart-PP4166-4681P003"></div>
+                </div>
+            </div>
 
-                <!-- PP4166-4681P004 -->
-                <div class="tab-content" id="tab-PP4166-4681P004">
-                    <div class="product-header">
-                        <h2>🔧 PP4166-4681P004</h2>
-                        <p>ｱｯﾊﾟﾌﾞﾚｰﾑ</p>
+            <div id="tab-PP4166-4681P004" class="tab-content">
+                <div class="data-header">
+                    <h2>🔧 PP4166-4681P004 - ｱｯﾊﾟﾌﾞﾚｰﾑ</h2>
+                </div>
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-quantity-PP4166-4681P004">0</div>
+                        <div class="stat-label">Total Quantity</div>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4681P004">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4681P004">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4681P004">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders-PP4166-4681P004">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4681P004">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="next-delivery-PP4166-4681P004">None</div>
+                        <div class="stat-label">Next Delivery</div>
                     </div>
                 </div>
+                <div class="chart-container">
+                    <div id="chart-PP4166-4681P004"></div>
+                </div>
+            </div>
 
-                <!-- PP4166-4726P003 -->
-                <div class="tab-content" id="tab-PP4166-4726P003">
-                    <div class="product-header">
-                        <h2>⚙️ PP4166-4726P003</h2>
-                        <p>ﾄｯﾌﾟﾌﾟﾚｰﾄ</p>
+            <div id="tab-PP4166-4726P003" class="tab-content">
+                <div class="data-header">
+                    <h2>📱 PP4166-4726P003 - ﾄｯﾌﾟﾌﾟﾚｰﾄ</h2>
+                </div>
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-quantity-PP4166-4726P003">0</div>
+                        <div class="stat-label">Total Quantity</div>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4726P003">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4726P003">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4726P003">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders-PP4166-4726P003">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4726P003">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="next-delivery-PP4166-4726P003">None</div>
+                        <div class="stat-label">Next Delivery</div>
                     </div>
                 </div>
+                <div class="chart-container">
+                    <div id="chart-PP4166-4726P003"></div>
+                </div>
+            </div>
 
-                <!-- PP4166-4726P004 -->
-                <div class="tab-content" id="tab-PP4166-4726P004">
-                    <div class="product-header">
-                        <h2>⚙️ PP4166-4726P004</h2>
-                        <p>ﾄｯﾌﾟﾌﾟﾚｰﾄ</p>
+            <div id="tab-PP4166-4726P004" class="tab-content">
+                <div class="data-header">
+                    <h2>📱 PP4166-4726P004 - ﾄｯﾌﾟﾌﾟﾚｰﾄ</h2>
+                </div>
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-quantity-PP4166-4726P004">0</div>
+                        <div class="stat-label">Total Quantity</div>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4726P004">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4726P004">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4726P004">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders-PP4166-4726P004">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4726P004">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="next-delivery-PP4166-4726P004">None</div>
+                        <div class="stat-label">Next Delivery</div>
                     </div>
                 </div>
+                <div class="chart-container">
+                    <div id="chart-PP4166-4726P004"></div>
+                </div>
+            </div>
 
-                <!-- PP4166-4731P002 -->
-                <div class="tab-content" id="tab-PP4166-4731P002">
-                    <div class="product-header">
-                        <h2>🔩 PP4166-4731P002</h2>
-                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
+            <div id="tab-PP4166-4731P002" class="tab-content">
+                <div class="data-header">
+                    <h2>⚙️ PP4166-4731P002 - ﾐﾄﾞﾙﾌﾚｰﾑ</h2>
+                </div>
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-quantity-PP4166-4731P002">0</div>
+                        <div class="stat-label">Total Quantity</div>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-4731P002">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-4731P002">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-4731P002">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders-PP4166-4731P002">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-4731P002">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="next-delivery-PP4166-4731P002">None</div>
+                        <div class="stat-label">Next Delivery</div>
                     </div>
                 </div>
+                <div class="chart-container">
+                    <div id="chart-PP4166-4731P002"></div>
+                </div>
+            </div>
 
-                <!-- PP4166-7106P001 -->
-                <div class="tab-content" id="tab-PP4166-7106P001">
-                    <div class="product-header">
-                        <h2>🔩 PP4166-7106P001</h2>
-                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
+            <div id="tab-PP4166-7106P001" class="tab-content">
+                <div class="data-header">
+                    <h2>⚙️ PP4166-7106P001 - ﾐﾄﾞﾙﾌﾚｰﾑ</h2>
+                </div>
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-quantity-PP4166-7106P001">0</div>
+                        <div class="stat-label">Total Quantity</div>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-7106P001">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-7106P001">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-7106P001">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders-PP4166-7106P001">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-7106P001">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="next-delivery-PP4166-7106P001">None</div>
+                        <div class="stat-label">Next Delivery</div>
                     </div>
                 </div>
+                <div class="chart-container">
+                    <div id="chart-PP4166-7106P001"></div>
+                </div>
+            </div>
 
-                <!-- PP4166-7106P003 -->
-                <div class="tab-content" id="tab-PP4166-7106P003">
-                    <div class="product-header">
-                        <h2>🔩 PP4166-7106P003</h2>
-                        <p>ﾐﾄﾞﾙﾌﾚｰﾑ</p>
+            <div id="tab-PP4166-7106P003" class="tab-content">
+                <div class="data-header">
+                    <h2>⚙️ PP4166-7106P003 - ﾐﾄﾞﾙﾌﾚｰﾑ</h2>
+                </div>
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-quantity-PP4166-7106P003">0</div>
+                        <div class="stat-label">Total Quantity</div>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-quantity-PP4166-7106P003">0</div>
-                            <div class="stat-label">Total Quantity</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="total-orders-PP4166-7106P003">0</div>
-                            <div class="stat-label">Future Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number" id="next-delivery-PP4166-7106P003">-</div>
-                            <div class="stat-label">Next Delivery</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders-PP4166-7106P003">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    
-                    <div class="chart-container">
-                        <div class="chart-title">📊 Delivery Schedule</div>
-                        <div class="chart-wrapper" id="chart-PP4166-7106P003">
-                            <div class="no-data-state">
-                                <h3>📅 No Data Available</h3>
-                                <p>Import EDI data to see delivery schedule for this product.</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="next-delivery-PP4166-7106P003">None</div>
+                        <div class="stat-label">Next Delivery</div>
                     </div>
+                </div>
+                <div class="chart-container">
+                    <div id="chart-PP4166-7106P003"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Single consolidated JavaScript file -->
+    <!-- Enhanced JavaScript -->
     <script src="/js/dashboard-app.js"></script>
 </body>
 </html>

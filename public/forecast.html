@@ -122,6 +122,88 @@
             flex-wrap: wrap;
         }
 
+        .import-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px 12px;
+            background: #f8fafc;
+        }
+
+        .btn-info {
+            background: #0ea5e9;
+            border: 1px solid #0284c7;
+            color: white;
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-info:hover {
+            background: #0284c7;
+            transform: translateY(-1px);
+        }
+
+        .btn-info:disabled {
+            background: #9ca3af;
+            border-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            border: 1px solid #d97706;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+            transform: translateY(-1px);
+        }
+
+        .btn-warning:disabled {
+            background: #9ca3af;
+            border-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .import-notice {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .import-notice h4 {
+            margin: 0 0 8px 0;
+            color: #92400e;
+            font-size: 1rem;
+        }
+
+        .import-notice ul {
+            margin: 8px 0 0 20px;
+            color: #92400e;
+        }
+
+        .import-notice p {
+            margin: 4px 0;
+            color: #92400e;
+        }
+
         .forecast-summary {
             background: #f8fafc;
             border: 1px solid #e5e7eb;
@@ -202,6 +284,11 @@
             .forecast-controls {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 12px;
+            }
+            
+            .import-controls {
+                justify-content: center;
             }
 
             .navigation-bar {
@@ -265,14 +352,41 @@
                 </div>
             </div>
 
+            <!-- Excel Import Format Notice -->
+            <div class="import-notice">
+                <h4>📋 Excel Import Format</h4>
+                <p>Your Excel file should have this structure:</p>
+                <ul>
+                    <li><strong>Column A:</strong> Drawing Number (PP4166-4681P003, etc.)</li>
+                    <li><strong>Column B:</strong> Product Name (optional)</li>
+                    <li><strong>Columns C+:</strong> Month headers (8月, 9月, 2025/8, Aug, etc.)</li>
+                    <li><strong>Data rows:</strong> Quantity values for each month</li>
+                </ul>
+                <p>The system will automatically detect month columns and convert them to the correct format.</p>
+            </div>
+
             <!-- Forecast Controls -->
             <div class="forecast-controls">
+                <!-- Existing save controls -->
                 <button class="btn btn-primary admin-only" id="saveAllBtn" onclick="saveAllForecasts()">
                     💾 Save All Changes
                 </button>
                 <button class="btn btn-secondary admin-only" id="clearAllBtn" onclick="clearAllForecasts()">
                     🗑️ Clear All
                 </button>
+                
+                <!-- Excel Import Controls -->
+                <div class="import-controls admin-only">
+                    <input type="file" id="forecastFileInput" accept=".xlsx,.xls" style="display: none;">
+                    <button class="btn btn-info" id="chooseForecastFileBtn" onclick="chooseForecastFile()">
+                        📁 Choose Excel File
+                    </button>
+                    <button class="btn btn-warning" id="importForecastBtn" onclick="importForecastExcel()" disabled>
+                        📤 Import Forecast Data
+                    </button>
+                </div>
+                
+                <!-- Existing other controls -->
                 <button class="btn btn-success" id="refreshBtn" onclick="loadForecastData()">
                     🔄 Refresh Data
                 </button>
@@ -282,6 +396,7 @@
                 <button class="btn btn-warning" onclick="testForecastTableState()">
                     🧪 Test Table State
                 </button>
+                
                 <div class="read-only-notice" id="readOnlyNotice">
                     👁️ View-Only Mode - Contact admin for edit access
                 </div>
@@ -881,6 +996,81 @@ Check console for detailed logs.`);
         // Create global instance
         const forecastManager = new ForecastManager();
 
+        // Handle forecast file selection
+        function chooseForecastFile() {
+            const fileInput = document.getElementById('forecastFileInput');
+            if (fileInput) {
+                fileInput.click();
+            }
+        }
+
+        // Import forecast data from Excel
+        async function importForecastExcel() {
+            if (!forecastManager.userPermissions.canEdit) {
+                forecastManager.showMessage('You do not have permission to import data', 'error');
+                return;
+            }
+
+            const fileInput = document.getElementById('forecastFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                forecastManager.showMessage('Please select an Excel file first', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('forecastFile', file);
+
+            try {
+                forecastManager.showLoading(true);
+                forecastManager.showMessage('Importing forecast data from Excel...', 'info');
+                
+                const response = await fetch('/api/import-forecast', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    forecastManager.showMessage(result.message, 'success');
+                    
+                    // Show import details
+                    if (result.details) {
+                        console.log('📊 Import details:', result.details);
+                        const detailsMsg = `Import completed: ${result.details.saved} forecasts saved from ${result.details.rowsProcessed} rows`;
+                        forecastManager.showMessage(detailsMsg, 'info');
+                    }
+                    
+                    // Reload forecast data
+                    await forecastManager.loadForecastData();
+                    
+                    // Reset file input
+                    fileInput.value = '';
+                    const importBtn = document.getElementById('importForecastBtn');
+                    if (importBtn) {
+                        importBtn.disabled = true;
+                        importBtn.textContent = '📤 Import Forecast Data';
+                    }
+                } else {
+                    forecastManager.showMessage(result.error || 'Import failed', 'error');
+                    if (result.details) {
+                        console.error('❌ Import error details:', result.details);
+                    }
+                }
+            } catch (error) {
+                if (error.message.includes('403')) {
+                    forecastManager.showMessage('You do not have permission to import data', 'error');
+                } else {
+                    forecastManager.showMessage('Import failed: ' + error.message, 'error');
+                }
+                console.error('❌ Import error:', error);
+            } finally {
+                forecastManager.showLoading(false);
+            }
+        }
+
         // Global functions
         function saveAllForecasts() {
             forecastManager.saveAllForecasts();
@@ -937,9 +1127,27 @@ Check console for detailed logs.`);
             }
         };
 
-        // Initialize when DOM is ready
+        // Add file input change handler
         document.addEventListener('DOMContentLoaded', function() {
             forecastManager.initialize();
+            
+            const forecastFileInput = document.getElementById('forecastFileInput');
+            const importForecastBtn = document.getElementById('importForecastBtn');
+            
+            if (forecastFileInput && importForecastBtn) {
+                forecastFileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    
+                    if (file && forecastManager.userPermissions.canEdit) {
+                        importForecastBtn.disabled = false;
+                        importForecastBtn.textContent = `📤 Import ${file.name}`;
+                        forecastManager.showMessage(`Excel file selected: ${file.name}`, 'success');
+                    } else {
+                        importForecastBtn.disabled = true;
+                        importForecastBtn.textContent = '📤 Import Forecast Data';
+                    }
+                });
+            }
         });
     </script>
 </body>
