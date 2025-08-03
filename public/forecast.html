@@ -320,7 +320,7 @@
                 ];
             }
 
-            // Generate 12 months starting from current month
+            // ENHANCED - Generate 12 months starting from current month with consistent formatting
             generateMonths() {
                 const months = [];
                 const now = new Date();
@@ -329,6 +329,9 @@
                     const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
                     const year = date.getFullYear();
                     const month = date.getMonth() + 1;
+                    
+                    // Ensure consistent MM/01 format
+                    const monthKey = `${String(month).padStart(2, '0')}/01`;
                     
                     // Japanese month names
                     const japaneseMonths = ['1月', '2月', '3月', '4月', '5月', '6月', 
@@ -339,16 +342,19 @@
                                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                     
                     months.push({
-                        key: `${String(month).padStart(2, '0')}/01`,
+                        key: monthKey,
                         display: japaneseMonths[month - 1],
                         english: englishMonths[month - 1],
                         year: year,
                         month: month,
                         fullDate: `${year}/${String(month).padStart(2, '0')}/01`
                     });
+                    
+                    console.log(`📅 Generated month ${i + 1}: key="${monthKey}", display="${japaneseMonths[month - 1]}"`);
                 }
                 
                 this.months = months;
+                console.log('📅 Total months generated:', months.length);
                 return months;
             }
 
@@ -413,7 +419,7 @@
                 }
             }
 
-            // Load forecast data from API
+            // ENHANCED - Load forecast data from API with better debugging
             async loadForecastData() {
                 try {
                     this.showLoading(true);
@@ -432,16 +438,18 @@
                     
                     const forecasts = await response.json();
                     console.log('📊 Raw forecast data from API:', forecasts);
+                    console.log('📊 Forecast data count:', forecasts.length);
                     
-                    // Convert array to object for easier lookup
+                    // Convert array to object for easier lookup with enhanced debugging
                     this.forecastData = {};
-                    forecasts.forEach(forecast => {
+                    forecasts.forEach((forecast, index) => {
                         const key = `${forecast.drawing_number}-${forecast.month_date}`;
                         this.forecastData[key] = forecast.quantity;
-                        console.log(`✅ Loaded forecast: ${key} = ${forecast.quantity}`);
+                        console.log(`✅ Loaded forecast ${index + 1}: ${key} = ${forecast.quantity}`);
                     });
                     
-                    console.log('📊 Processed forecast data:', this.forecastData);
+                    console.log('📊 Processed forecast data object keys:', Object.keys(this.forecastData));
+                    console.log('📊 Total forecast entries loaded:', Object.keys(this.forecastData).length);
                     
                     this.renderForecastTable();
                     this.updateSummary();
@@ -709,7 +717,7 @@
                 }
             }
 
-            // Debug function to check data consistency
+            // ENHANCED Debug function to check data consistency
             async showDebugInfo() {
                 try {
                     const response = await fetch('/api/debug/forecasts');
@@ -732,6 +740,38 @@ Check console for detailed logs.`);
                 } catch (error) {
                     console.error('Debug error:', error);
                     alert('Debug error: ' + error.message);
+                }
+            }
+
+            // ENHANCED Debug helper function
+            debugForecastData() {
+                console.log('🔍 FORECAST DEBUG INFORMATION:');
+                console.log('📊 Current forecast data object:', this.forecastData);
+                console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
+                
+                // Show all forecast keys
+                Object.keys(this.forecastData).forEach(key => {
+                    console.log(`🔍 Forecast entry: ${key} = ${this.forecastData[key]}`);
+                });
+                
+                // Generate expected keys for comparison
+                const now = new Date();
+                const products = [
+                    'PP4166-4681P003', 'PP4166-4681P004', 'PP4166-4726P003', 
+                    'PP4166-4726P004', 'PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003'
+                ];
+                
+                console.log('🔍 Expected forecast keys for next 6 months:');
+                for (let i = 0; i < 6; i++) {
+                    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                    const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
+                    
+                    products.forEach(product => {
+                        const expectedKey = `${product}-${monthKey}`;
+                        const hasData = this.forecastData.hasOwnProperty(expectedKey);
+                        const value = this.forecastData[expectedKey] || 0;
+                        console.log(`🔍 ${expectedKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
+                    });
                 }
             }
 
@@ -781,6 +821,23 @@ Check console for detailed logs.`);
         function showDebugInfo() {
             forecastManager.showDebugInfo();
         }
+
+        // Add debug testing functions to window
+        window.testForecastDebug = function() {
+            forecastManager.debugForecastData();
+        };
+
+        window.testSessionDebug = async function() {
+            try {
+                const response = await fetch('/api/user-info');
+                const data = await response.json();
+                console.log('🔍 Session debug - User info:', data);
+                return data;
+            } catch (error) {
+                console.log('❌ Session debug failed:', error);
+                return null;
+            }
+        };
 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
