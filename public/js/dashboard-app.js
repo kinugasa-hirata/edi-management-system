@@ -155,9 +155,10 @@ class EDIDashboard {
         }
     }
 
-    // ENHANCED - Forecast data loading with better debugging
+    // ENHANCED - Forecast data loading with better debugging and type conversion
     async loadForecastData() {
         try {
+            console.log('📈 Dashboard: Starting forecast data load...');
             const response = await fetch('/api/forecasts');
             
             if (response.ok) {
@@ -168,16 +169,41 @@ class EDIDashboard {
                 // Convert array to object for easier lookup with enhanced debugging
                 this.forecastData = {};
                 forecasts.forEach((forecast, index) => {
-                    const key = `${forecast.drawing_number}-${forecast.month_date}`;
-                    this.forecastData[key] = forecast.quantity;
-                    console.log(`📈 Dashboard: Loaded forecast ${index + 1}: ${key} = ${forecast.quantity}`);
+                    // Ensure consistent date formatting
+                    let monthDate = forecast.month_date;
+                    
+                    // Handle different date formats that might come from the API
+                    if (monthDate && monthDate.includes('/')) {
+                        const parts = monthDate.split('/');
+                        if (parts.length >= 2) {
+                            const month = parts[0].padStart(2, '0');
+                            const day = parts[1] || '01';
+                            monthDate = `${month}/${day.padStart(2, '0')}`;
+                        }
+                    }
+                    
+                    const key = `${forecast.drawing_number}-${monthDate}`;
+                    
+                    // Enhanced type conversion
+                    let quantity = forecast.quantity;
+                    if (typeof quantity === 'string') {
+                        quantity = parseFloat(quantity);
+                    }
+                    
+                    this.forecastData[key] = quantity;
+                    console.log(`📈 Dashboard: Loaded forecast ${index + 1}: ${key} = ${quantity} (original: ${forecast.quantity}, type: ${typeof quantity})`);
                 });
                 
                 console.log('📈 Dashboard: Processed forecast data keys:', Object.keys(this.forecastData));
+                console.log('📈 Dashboard: Processed forecast data values:', this.forecastData);
                 console.log('📈 Dashboard: Total forecast entries:', Object.keys(this.forecastData).length);
                 console.log('✅ Forecast data loaded successfully');
+                
+                // Immediate verification - check if we have data for current products
+                this.verifyForecastDataIntegrity();
+                
             } else {
-                console.warn('⚠️ Failed to load forecast data:', response.status);
+                console.warn('⚠️ Failed to load forecast data:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('❌ Error loading forecast data:', error);
@@ -719,10 +745,11 @@ class EDIDashboard {
         container.appendChild(svg);
     }
 
-    // ENHANCED - Get forecast bars for chart with better date matching
+    // ENHANCED - Get forecast bars for chart with better date matching and type conversion
     getForecastBarsForChart(drawingNumber, existingData) {
         console.log(`📊 Getting forecast bars for ${drawingNumber}`);
         console.log(`📊 Available forecast data keys:`, Object.keys(this.forecastData));
+        console.log(`📊 Available forecast data:`, this.forecastData);
         
         const forecastBars = [];
         const now = new Date();
@@ -737,14 +764,26 @@ class EDIDashboard {
             const month = date.getMonth() + 1;
             const year = date.getFullYear();
             
-            // Use consistent MM/01 format
+            // Use consistent MM/01 format (matching forecast.html saving format)
             const monthKey = `${String(month).padStart(2, '0')}/01`;
             const forecastKey = `${drawingNumber}-${monthKey}`;
             
             console.log(`📊 Checking forecast key: ${forecastKey}`);
-            console.log(`📊 Forecast value: ${this.forecastData[forecastKey]}`);
             
-            if (this.forecastData[forecastKey] && this.forecastData[forecastKey] > 0) {
+            // Enhanced type checking and conversion
+            let forecastValue = this.forecastData[forecastKey];
+            
+            // Handle both string and number values, convert to number
+            if (forecastValue !== undefined && forecastValue !== null && forecastValue !== '') {
+                forecastValue = typeof forecastValue === 'string' ? parseFloat(forecastValue) : forecastValue;
+                console.log(`📊 Forecast value for ${forecastKey}: ${forecastValue} (type: ${typeof forecastValue})`);
+            } else {
+                console.log(`📊 No forecast value for ${forecastKey} (value: ${forecastValue})`);
+                continue;
+            }
+            
+            // Only add if value is a positive number
+            if (!isNaN(forecastValue) && forecastValue > 0) {
                 // Format display date
                 const displayDate = `${String(month).padStart(2, '0')}/01`;
                 
@@ -752,7 +791,7 @@ class EDIDashboard {
                 const fullDate = `${year}/${String(month).padStart(2, '0')}/01`;
                 if (!existingDates.has(fullDate)) {
                     const forecastBar = {
-                        quantity: this.forecastData[forecastKey],
+                        quantity: forecastValue,
                         displayDate: displayDate,
                         fullDate: fullDate,
                         month: month,
@@ -764,11 +803,12 @@ class EDIDashboard {
                     console.log(`⚠️ Skipping forecast ${fullDate} - overlaps with existing delivery`);
                 }
             } else {
-                console.log(`⚠️ No forecast data for ${forecastKey} or quantity is 0`);
+                console.log(`⚠️ Invalid forecast data for ${forecastKey}: value=${forecastValue}, isNaN=${isNaN(forecastValue)}`);
             }
         }
         
         console.log(`📊 Final forecast bars for ${drawingNumber}:`, forecastBars);
+        console.log(`📊 Total forecast bars: ${forecastBars.length}`);
         return forecastBars;
     }
 
@@ -796,6 +836,72 @@ class EDIDashboard {
     updateAllProductCharts() {
         this.DRAWING_NUMBER_ORDER.forEach(drawingNumber => {
             this.generateProductChart(drawingNumber);
+        });
+    }
+
+    // ============ ENHANCED VERIFICATION AND DEBUGGING METHODS ============
+    
+    // Add this new verification method
+    verifyForecastDataIntegrity() {
+        console.log('🔍 Verifying forecast data integrity...');
+        
+        const now = new Date();
+        const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+        const currentKey = `${currentMonth}/01`;
+        
+        console.log(`🔍 Current month key format: ${currentKey}`);
+        
+        let foundDataCount = 0;
+        this.DRAWING_NUMBER_ORDER.forEach(product => {
+            const testKey = `${product}-${currentKey}`;
+            const hasData = this.forecastData.hasOwnProperty(testKey);
+            const value = this.forecastData[testKey];
+            
+            console.log(`🔍 Testing ${testKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
+            if (hasData && value > 0) {
+                foundDataCount++;
+            }
+        });
+        
+        console.log(`🔍 Found ${foundDataCount} forecast entries for current month`);
+        
+        if (foundDataCount === 0) {
+            console.warn('⚠️ No forecast data found for current month. Check date format consistency.');
+            this.debugForecastDateFormats();
+        }
+    }
+
+    // Add this new debugging method
+    debugForecastDateFormats() {
+        console.log('🔍 DEBUGGING FORECAST DATE FORMATS:');
+        
+        // Show all available keys and their formats
+        Object.keys(this.forecastData).forEach(key => {
+            const parts = key.split('-');
+            const drawingNumber = parts[0];
+            const dateKey = parts.slice(1).join('-');
+            console.log(`🔍 Key: ${key} | Drawing: ${drawingNumber} | Date: ${dateKey} | Value: ${this.forecastData[key]}`);
+        });
+        
+        // Show expected format for current month
+        const now = new Date();
+        const expectedFormat = `${String(now.getMonth() + 1).padStart(2, '0')}/01`;
+        console.log(`🔍 Expected current month format: ${expectedFormat}`);
+        
+        // Test format variations
+        const testFormats = [
+            `${now.getMonth() + 1}/01`,
+            `${String(now.getMonth() + 1).padStart(2, '0')}/01`,
+            `${String(now.getMonth() + 1).padStart(2, '0')}/1`,
+            `${now.getMonth() + 1}/1`
+        ];
+        
+        console.log('🔍 Testing format variations for first product:');
+        const testProduct = this.DRAWING_NUMBER_ORDER[0];
+        testFormats.forEach(format => {
+            const testKey = `${testProduct}-${format}`;
+            const exists = this.forecastData.hasOwnProperty(testKey);
+            console.log(`🔍 Format ${format}: ${testKey} ${exists ? 'EXISTS' : 'MISSING'}`);
         });
     }
 
@@ -953,9 +1059,10 @@ class EDIDashboard {
         console.log('📊 Current forecast data object:', this.forecastData);
         console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
         
-        // Show all forecast keys
+        // Show all forecast keys with values and types
         Object.keys(this.forecastData).forEach(key => {
-            console.log(`🔍 Forecast entry: ${key} = ${this.forecastData[key]}`);
+            const value = this.forecastData[key];
+            console.log(`🔍 Forecast entry: ${key} = ${value} (type: ${typeof value}, valid: ${!isNaN(parseFloat(value)) && parseFloat(value) > 0})`);
         });
         
         // Generate expected keys for comparison
@@ -970,8 +1077,20 @@ class EDIDashboard {
                 const expectedKey = `${product}-${monthKey}`;
                 const hasData = this.forecastData.hasOwnProperty(expectedKey);
                 const value = this.forecastData[expectedKey] || 0;
-                console.log(`🔍 ${expectedKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
+                const isValid = !isNaN(parseFloat(value)) && parseFloat(value) > 0;
+                console.log(`🔍 ${expectedKey}: ${hasData ? (isValid ? 'VALID' : 'INVALID') : 'MISSING'} (value: ${value})`);
             });
+        }
+        
+        // Test chart generation for first product
+        console.log('🔍 Testing forecast bar generation for first product...');
+        if (this.DRAWING_NUMBER_ORDER.length > 0) {
+            const testProduct = this.DRAWING_NUMBER_ORDER[0];
+            const testData = this.ediData.filter(order => order.drawing_number === testProduct);
+            const testFutureOrders = this.getFutureOrders(testData);
+            const testChartData = this.groupOrdersByDate(testFutureOrders);
+            const testForecastBars = this.getForecastBarsForChart(testProduct, testChartData);
+            console.log(`🔍 Generated ${testForecastBars.length} forecast bars for ${testProduct}`);
         }
     }
 
@@ -1083,9 +1202,35 @@ function logout() {
     ediDashboard.logout();
 }
 
-// Add debug testing functions to window
+// ============ ENHANCED GLOBAL TEST FUNCTIONS ============
+
+// Add enhanced debug testing functions to window
 window.testForecastDebug = function() {
+    console.log('🧪 Running forecast debug test...');
     ediDashboard.debugForecastData();
+};
+
+window.testForecastIntegrity = function() {
+    console.log('🧪 Running forecast integrity test...');
+    ediDashboard.verifyForecastDataIntegrity();
+};
+
+window.testForceRefreshCharts = function() {
+    console.log('🧪 Force refreshing all charts...');
+    ediDashboard.updateAllProductCharts();
+};
+
+window.testForecastAPI = async function() {
+    console.log('🧪 Testing forecast API directly...');
+    try {
+        const response = await fetch('/api/forecasts');
+        const data = await response.json();
+        console.log('📊 Raw API response:', data);
+        return data;
+    } catch (error) {
+        console.error('❌ API test failed:', error);
+        return null;
+    }
 };
 
 window.testSessionDebug = async function() {

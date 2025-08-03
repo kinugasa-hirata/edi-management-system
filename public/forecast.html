@@ -279,6 +279,9 @@
                 <button class="btn btn-secondary" id="debugBtn" onclick="showDebugInfo()">
                     🔍 Debug Info
                 </button>
+                <button class="btn btn-warning" onclick="testForecastTableState()">
+                    🧪 Test Table State
+                </button>
                 <div class="read-only-notice" id="readOnlyNotice">
                     👁️ View-Only Mode - Contact admin for edit access
                 </div>
@@ -419,7 +422,7 @@
                 }
             }
 
-            // ENHANCED - Load forecast data from API with better debugging
+            // ENHANCED - Load forecast data with proper type conversion
             async loadForecastData() {
                 try {
                     this.showLoading(true);
@@ -440,20 +443,28 @@
                     console.log('📊 Raw forecast data from API:', forecasts);
                     console.log('📊 Forecast data count:', forecasts.length);
                     
-                    // Convert array to object for easier lookup with enhanced debugging
+                    // ENHANCED: Convert array to object with proper type conversion
                     this.forecastData = {};
                     forecasts.forEach((forecast, index) => {
                         const key = `${forecast.drawing_number}-${forecast.month_date}`;
-                        this.forecastData[key] = forecast.quantity;
-                        console.log(`✅ Loaded forecast ${index + 1}: ${key} = ${forecast.quantity}`);
+                        // CRITICAL: Ensure quantity is a number
+                        const quantity = parseInt(forecast.quantity) || 0;
+                        this.forecastData[key] = quantity;
+                        console.log(`✅ Loaded forecast ${index + 1}: ${key} = ${quantity} (type: ${typeof quantity})`);
                     });
                     
                     console.log('📊 Processed forecast data object keys:', Object.keys(this.forecastData));
                     console.log('📊 Total forecast entries loaded:', Object.keys(this.forecastData).length);
+                    console.log('📊 Complete forecast data object:', this.forecastData);
                     
                     this.renderForecastTable();
                     this.updateSummary();
                     this.clearChangedCells();
+                    
+                    // IMMEDIATE VERIFICATION after load
+                    setTimeout(() => {
+                        this.debugTableState();
+                    }, 500);
                     
                 } catch (error) {
                     this.showMessage('Failed to load forecast data: ' + error.message, 'error');
@@ -463,7 +474,7 @@
                 }
             }
 
-            // Render the forecast table
+            // ENHANCED - Render forecast table with better debugging
             renderForecastTable() {
                 const container = document.getElementById('forecastTableContainer');
                 const recordCount = document.getElementById('recordCount');
@@ -476,7 +487,12 @@
 
                 console.log('🎨 Rendering forecast table...');
                 console.log('📅 Generated months:', this.months);
+                console.log('📊 Current forecast data keys:', Object.keys(this.forecastData));
                 console.log('📊 Current forecast data:', this.forecastData);
+
+                // DEBUG: Check for any forecast data
+                const hasAnyData = Object.keys(this.forecastData).length > 0;
+                console.log('📊 Has any forecast data:', hasAnyData);
 
                 const tableHTML = `
                     <table>
@@ -499,13 +515,24 @@
                                     <td class="product-cell">${product.name}</td>
                                     ${this.months.map(month => {
                                         const key = `${product.drawing}-${month.key}`;
-                                        const value = this.forecastData[key] || '';
-                                        console.log(`🔍 Cell ${key}: stored=${this.forecastData[key]}, display=${value}`);
+                                        const value = this.forecastData[key] || 0;
+                                        
+                                        // ENHANCED DEBUG LOGGING
+                                        if (this.forecastData[key]) {
+                                            console.log(`🔍 Cell Debug:`);
+                                            console.log(`   Product: ${product.drawing}`);
+                                            console.log(`   Month: ${month.key} (${month.display})`);
+                                            console.log(`   Key: ${key}`);
+                                            console.log(`   Stored Value: ${this.forecastData[key]}`);
+                                            console.log(`   Display Value: ${value}`);
+                                            console.log(`   Value Type: ${typeof value}`);
+                                        }
+                                        
                                         return `
                                             <td>
                                                 <input type="number" 
                                                        class="forecast-input" 
-                                                       value="${value}"
+                                                       value="${value > 0 ? value : ''}"
                                                        data-drawing="${product.drawing}"
                                                        data-month="${month.key}"
                                                        data-key="${key}"
@@ -525,6 +552,25 @@
 
                 container.innerHTML = tableHTML;
                 console.log('✅ Forecast table rendered');
+                
+                // IMMEDIATE VERIFICATION: Check if any input has values
+                setTimeout(() => {
+                    const inputs = document.querySelectorAll('.forecast-input');
+                    let filledInputs = 0;
+                    inputs.forEach(input => {
+                        if (input.value && input.value !== '0' && input.value !== '') {
+                            filledInputs++;
+                            console.log(`✅ Found filled input: ${input.dataset.key} = ${input.value}`);
+                        }
+                    });
+                    console.log(`📊 Total filled inputs after render: ${filledInputs} / ${inputs.length}`);
+                    
+                    if (filledInputs === 0 && Object.keys(this.forecastData).length > 0) {
+                        console.log('❌ ERROR: Have forecast data but no inputs are filled!');
+                        console.log('📊 Forecast data keys:', Object.keys(this.forecastData));
+                        console.log('📊 Month keys generated:', this.months.map(m => m.key));
+                    }
+                }, 100);
             }
 
             // Handle cell value changes
@@ -591,6 +637,16 @@
                         this.clearChangedCells();
                         this.updateSaveStatus('saved', 'All changes saved');
                         this.updateSummary();
+                        
+                        // IMMEDIATE DEBUG: Check what was actually saved
+                        console.log('🔍 DEBUG: Immediately after save success:');
+                        console.log('📊 Current forecastData:', this.forecastData);
+                        
+                        // Force refresh from server to verify
+                        setTimeout(async () => {
+                            console.log('🔄 Verifying save by reloading from server...');
+                            await this.loadForecastData();
+                        }, 1000);
                     } else {
                         this.showMessage(result.error || 'Failed to save forecasts', 'error');
                         this.updateSaveStatus('error', 'Save failed');
@@ -743,36 +799,40 @@ Check console for detailed logs.`);
                 }
             }
 
-            // ENHANCED Debug helper function
-            debugForecastData() {
-                console.log('🔍 FORECAST DEBUG INFORMATION:');
-                console.log('📊 Current forecast data object:', this.forecastData);
-                console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
+            // ENHANCED Debug helper function - Table state verification
+            debugTableState() {
+                console.log('🔍 TABLE STATE DEBUG:');
+                console.log('📊 Forecast data object:', this.forecastData);
+                console.log('📊 Generated months:', this.months);
                 
-                // Show all forecast keys
-                Object.keys(this.forecastData).forEach(key => {
-                    console.log(`🔍 Forecast entry: ${key} = ${this.forecastData[key]}`);
+                // Check each product-month combination
+                this.products.forEach(product => {
+                    console.log(`\n🔍 Product: ${product.drawing}`);
+                    this.months.forEach((month, index) => {
+                        const key = `${product.drawing}-${month.key}`;
+                        const storedValue = this.forecastData[key];
+                        const inputElement = document.querySelector(`[data-key="${key}"]`);
+                        const inputValue = inputElement ? inputElement.value : 'NOT_FOUND';
+                        
+                        if (storedValue || inputValue) {
+                            console.log(`   Month ${index + 1} (${month.key}):`);
+                            console.log(`     Key: ${key}`);
+                            console.log(`     Stored: ${storedValue} (${typeof storedValue})`);
+                            console.log(`     Input: ${inputValue}`);
+                            console.log(`     Element exists: ${!!inputElement}`);
+                        }
+                    });
                 });
                 
-                // Generate expected keys for comparison
-                const now = new Date();
-                const products = [
-                    'PP4166-4681P003', 'PP4166-4681P004', 'PP4166-4726P003', 
-                    'PP4166-4726P004', 'PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003'
-                ];
+                // Summary
+                const totalStoredEntries = Object.keys(this.forecastData).length;
+                const filledInputs = document.querySelectorAll('.forecast-input').length;
+                const nonEmptyInputs = Array.from(document.querySelectorAll('.forecast-input')).filter(input => input.value && input.value !== '0').length;
                 
-                console.log('🔍 Expected forecast keys for next 6 months:');
-                for (let i = 0; i < 6; i++) {
-                    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-                    const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
-                    
-                    products.forEach(product => {
-                        const expectedKey = `${product}-${monthKey}`;
-                        const hasData = this.forecastData.hasOwnProperty(expectedKey);
-                        const value = this.forecastData[expectedKey] || 0;
-                        console.log(`🔍 ${expectedKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
-                    });
-                }
+                console.log(`\n📊 SUMMARY:`);
+                console.log(`   Stored entries: ${totalStoredEntries}`);
+                console.log(`   Total inputs: ${filledInputs}`);
+                console.log(`   Non-empty inputs: ${nonEmptyInputs}`);
             }
 
             // Initialize the forecast manager
@@ -822,7 +882,7 @@ Check console for detailed logs.`);
             forecastManager.showDebugInfo();
         }
 
-        // Add debug testing functions to window
+        // ENHANCED Debug testing functions
         window.testForecastDebug = function() {
             forecastManager.debugForecastData();
         };
@@ -836,6 +896,24 @@ Check console for detailed logs.`);
             } catch (error) {
                 console.log('❌ Session debug failed:', error);
                 return null;
+            }
+        };
+
+        window.testForecastTableState = function() {
+            if (forecastManager) {
+                forecastManager.debugTableState();
+            } else {
+                console.log('❌ Forecast manager not found');
+            }
+        };
+
+        window.testForceRefresh = async function() {
+            if (forecastManager) {
+                console.log('🔄 Forcing forecast data refresh...');
+                await forecastManager.loadForecastData();
+                console.log('✅ Refresh complete');
+            } else {
+                console.log('❌ Forecast manager not found');
             }
         };
 
