@@ -276,6 +276,9 @@
                 <button class="btn btn-success" id="refreshBtn" onclick="loadForecastData()">
                     🔄 Refresh Data
                 </button>
+                <button class="btn btn-secondary" id="debugBtn" onclick="showDebugInfo()">
+                    🔍 Debug Info
+                </button>
                 <div class="read-only-notice" id="readOnlyNotice">
                     👁️ View-Only Mode - Contact admin for edit access
                 </div>
@@ -428,13 +431,17 @@
                     }
                     
                     const forecasts = await response.json();
+                    console.log('📊 Raw forecast data from API:', forecasts);
                     
                     // Convert array to object for easier lookup
                     this.forecastData = {};
                     forecasts.forEach(forecast => {
                         const key = `${forecast.drawing_number}-${forecast.month_date}`;
                         this.forecastData[key] = forecast.quantity;
+                        console.log(`✅ Loaded forecast: ${key} = ${forecast.quantity}`);
                     });
+                    
+                    console.log('📊 Processed forecast data:', this.forecastData);
                     
                     this.renderForecastTable();
                     this.updateSummary();
@@ -459,6 +466,10 @@
                     recordCount.textContent = `${this.products.length} products × ${this.months.length} months`;
                 }
 
+                console.log('🎨 Rendering forecast table...');
+                console.log('📅 Generated months:', this.months);
+                console.log('📊 Current forecast data:', this.forecastData);
+
                 const tableHTML = `
                     <table>
                         <thead>
@@ -481,6 +492,7 @@
                                     ${this.months.map(month => {
                                         const key = `${product.drawing}-${month.key}`;
                                         const value = this.forecastData[key] || '';
+                                        console.log(`🔍 Cell ${key}: stored=${this.forecastData[key]}, display=${value}`);
                                         return `
                                             <td>
                                                 <input type="number" 
@@ -504,6 +516,7 @@
                 `;
 
                 container.innerHTML = tableHTML;
+                console.log('✅ Forecast table rendered');
             }
 
             // Handle cell value changes
@@ -696,6 +709,32 @@
                 }
             }
 
+            // Debug function to check data consistency
+            async showDebugInfo() {
+                try {
+                    const response = await fetch('/api/debug/forecasts');
+                    if (response.ok) {
+                        const debugData = await response.json();
+                        console.log('🔍 DEBUG: Raw database data:', debugData);
+                        
+                        alert(`Debug Info:
+📊 Data source: ${debugData.source}
+📊 Total records: ${debugData.count}
+📊 Sample data: ${JSON.stringify(debugData.data.slice(0, 3), null, 2)}
+
+📊 Local forecast data keys: ${Object.keys(this.forecastData).length}
+📊 Generated months: ${this.months.length}
+
+Check console for detailed logs.`);
+                    } else {
+                        alert('Failed to fetch debug info');
+                    }
+                } catch (error) {
+                    console.error('Debug error:', error);
+                    alert('Debug error: ' + error.message);
+                }
+            }
+
             // Initialize the forecast manager
             async initialize() {
                 try {
@@ -737,6 +776,10 @@
 
         function logout() {
             forecastManager.logout();
+        }
+
+        function showDebugInfo() {
+            forecastManager.showDebugInfo();
         }
 
         // Initialize when DOM is ready

@@ -161,18 +161,23 @@ class EDIDashboard {
             
             if (response.ok) {
                 const forecasts = await response.json();
+                console.log('📈 Dashboard: Raw forecast data from API:', forecasts);
                 
                 // Convert array to object for easier lookup
                 this.forecastData = {};
                 forecasts.forEach(forecast => {
                     const key = `${forecast.drawing_number}-${forecast.month_date}`;
                     this.forecastData[key] = forecast.quantity;
+                    console.log(`📈 Dashboard: Loaded forecast ${key} = ${forecast.quantity}`);
                 });
                 
+                console.log('📈 Dashboard: Processed forecast data:', this.forecastData);
                 console.log('✅ Forecast data loaded:', Object.keys(this.forecastData).length, 'entries');
+            } else {
+                console.warn('⚠️ Failed to load forecast data:', response.status);
             }
         } catch (error) {
-            console.error('Error loading forecast data:', error);
+            console.error('❌ Error loading forecast data:', error);
             // Don't show error message as forecast is optional
         }
     }
@@ -713,11 +718,15 @@ class EDIDashboard {
 
     // Get forecast bars for chart
     getForecastBarsForChart(drawingNumber, existingData) {
+        console.log(`📊 Getting forecast bars for ${drawingNumber}`);
+        console.log(`📊 Available forecast data:`, this.forecastData);
+        
         const forecastBars = [];
         const now = new Date();
         
         // Get existing delivery dates to avoid overlap
         const existingDates = new Set(existingData.map(d => d.date));
+        console.log(`📊 Existing delivery dates:`, Array.from(existingDates));
         
         // Generate 6 months from current month
         for (let i = 0; i < 6; i++) {
@@ -725,24 +734,34 @@ class EDIDashboard {
             const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
             const forecastKey = `${drawingNumber}-${monthKey}`;
             
+            console.log(`📊 Checking forecast key: ${forecastKey}`);
+            console.log(`📊 Forecast value: ${this.forecastData[forecastKey]}`);
+            
             if (this.forecastData[forecastKey] && this.forecastData[forecastKey] > 0) {
                 // Format display date
-                const displayDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+                const displayDate = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
                 
                 // Only add if not overlapping with existing delivery dates
                 const fullDate = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/01`;
                 if (!existingDates.has(fullDate)) {
-                    forecastBars.push({
+                    const forecastBar = {
                         quantity: this.forecastData[forecastKey],
                         displayDate: displayDate,
                         fullDate: fullDate,
                         month: date.getMonth() + 1,
                         year: date.getFullYear()
-                    });
+                    };
+                    forecastBars.push(forecastBar);
+                    console.log(`✅ Added forecast bar:`, forecastBar);
+                } else {
+                    console.log(`⚠️ Skipping forecast ${fullDate} - overlaps with existing delivery`);
                 }
+            } else {
+                console.log(`⚠️ No forecast data for ${forecastKey} or quantity is 0`);
             }
         }
         
+        console.log(`📊 Final forecast bars for ${drawingNumber}:`, forecastBars);
         return forecastBars;
     }
 

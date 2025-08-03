@@ -371,7 +371,7 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
         DO UPDATE SET quantity = $3, updated_at = CURRENT_TIMESTAMP
       `;
       await sql.query(upsertQuery, [drawingNumber, monthDate, quantity]);
-      console.log('✅ Forecast saved to Postgres');
+      console.log('✅ Forecast saved to Postgres:', { drawingNumber, monthDate, quantity });
       return true;
     } catch (error) {
       console.error('❌ Error saving forecast to Postgres:', error);
@@ -386,18 +386,21 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
     if (existingIndex >= 0) {
       inMemoryForecasts[existingIndex].quantity = quantity;
       inMemoryForecasts[existingIndex].updated_at = new Date().toISOString();
+      console.log('✅ Updated forecast in memory:', { drawingNumber, monthDate, quantity });
     } else {
-      inMemoryForecasts.push({
+      const newForecast = {
         id: nextForecastId++,
         drawing_number: drawingNumber,
         month_date: monthDate,
         quantity: quantity,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      });
+      };
+      inMemoryForecasts.push(newForecast);
+      console.log('✅ Added new forecast to memory:', newForecast);
     }
     
-    console.log('✅ Forecast saved to memory');
+    console.log('📊 Current in-memory forecasts:', inMemoryForecasts);
     return true;
   }
 }
@@ -560,6 +563,33 @@ app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   }
 });
 
+// Debug endpoint to check forecast data
+app.get('/api/debug/forecasts', enhancedRequireAuth, async (req, res) => {
+  console.log('🔍 DEBUG: Checking forecast data');
+  
+  try {
+    if (isProduction && sql) {
+      const result = await sql.query('SELECT * FROM forecasts ORDER BY drawing_number, month_date');
+      console.log('🔍 DEBUG: Postgres forecasts:', result.rows);
+      res.json({ 
+        source: 'postgres', 
+        data: result.rows,
+        count: result.rows.length 
+      });
+    } else {
+      console.log('🔍 DEBUG: In-memory forecasts:', inMemoryForecasts);
+      res.json({ 
+        source: 'memory', 
+        data: inMemoryForecasts,
+        count: inMemoryForecasts.length 
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error in debug endpoint:', error);
+    res.status(500).json({ error: 'Debug failed' });
+  }
+});
+
 // Get all forecast data
 app.get('/api/forecasts', enhancedRequireAuth, async (req, res) => {
   console.log('🌐 GET /api/forecasts called');
@@ -567,6 +597,7 @@ app.get('/api/forecasts', enhancedRequireAuth, async (req, res) => {
   try {
     const forecasts = await getAllForecasts();
     console.log('📤 Sending forecast response with', forecasts.length, 'records');
+    console.log('📊 Sample forecasts:', forecasts.slice(0, 3));
     res.json(forecasts);
   } catch (error) {
     console.error('❌ Error fetching forecast data:', error);
@@ -604,6 +635,7 @@ app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
   
   try {
     const { forecasts } = req.body;
+    console.log('📊 Received forecasts for batch save:', forecasts);
     
     if (!Array.isArray(forecasts)) {
       return res.status(400).json({ error: 'Forecasts must be an array' });
@@ -614,18 +646,26 @@ app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
     
     for (const forecast of forecasts) {
       try {
+        console.log('💾 Processing forecast:', forecast);
         const success = await saveForecast(
           forecast.drawingNumber, 
           forecast.monthDate, 
           parseInt(forecast.quantity) || 0
         );
-        if (success) saved++;
-        else errors++;
+        if (success) {
+          saved++;
+          console.log('✅ Saved forecast:', forecast);
+        } else {
+          errors++;
+          console.log('❌ Failed to save forecast:', forecast);
+        }
       } catch (error) {
         errors++;
-        console.error('❌ Error saving individual forecast:', error);
+        console.error('❌ Error saving individual forecast:', forecast, error);
       }
     }
+    
+    console.log(`📊 Batch save completed: ${saved} saved, ${errors} errors`);
     
     res.json({ 
       success: true, 
