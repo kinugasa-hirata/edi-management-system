@@ -560,6 +560,7 @@
         <div class="navigation-bar">
             <a href="/dashboard" class="nav-link active">📊 Dashboard</a>
             <a href="/forecast" class="nav-link">📈 Forecast</a>
+            <a href="/stock" class="nav-link">📦 Material Stock</a>
             <div class="nav-logout">
                 <button class="btn btn-logout" onclick="logout()">🚪 Logout</button>
             </div>
@@ -572,7 +573,7 @@
                 Loading data...
             </div>
 
-            <!-- Enhanced Controls with Export -->
+            <!-- 🔧 SIMPLIFIED Controls - Removed JSON export and Refresh -->
             <div class="controls">
                 <!-- Import controls -->
                 <div class="import-controls">
@@ -581,20 +582,16 @@
                     <button class="btn btn-primary admin-only" id="importBtn" disabled>📤 Import WebEDI Data</button>
                 </div>
                 
-                <!-- FIXED: Export controls -->
+                <!-- 🔧 SIMPLIFIED Export controls - Only CSV -->
                 <div class="export-controls">
                     <button class="btn btn-success" id="exportCSVBtn" onclick="exportToCSV()">
                         📊 Export to CSV
                     </button>
-                    <button class="btn btn-secondary" id="exportJSONBtn" onclick="exportToJSON()">
-                        📋 Export to JSON
-                    </button>
                 </div>
                 
-                <!-- Save controls -->
+                <!-- 🔧 SIMPLIFIED Save controls - Removed Refresh -->
                 <div class="save-controls">
                     <button class="btn btn-primary admin-only" id="saveAllBtn">💾 Save All Changes</button>
-                    <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh Data</button>
                 </div>
                 
                 <div class="read-only-notice" id="readOnlyNotice">
@@ -796,7 +793,7 @@
     <!-- Enhanced JavaScript -->
     <script src="/js/dashboard-app.js"></script>
     <script>
-        // ============ FIXED EXPORT FUNCTIONALITY ============
+        // ============ SIMPLIFIED EXPORT FUNCTIONALITY ============
         // Add these methods to the EDIDashboard class
         EDIDashboard.prototype.exportToCSV = async function() {
             try {
@@ -842,63 +839,10 @@
             }
         };
 
-        EDIDashboard.prototype.exportToJSON = async function() {
-            try {
-                console.log('📊 Starting JSON export...');
-                this.showMessage('Preparing JSON export...', 'info');
-                
-                const response = await fetch('/api/export/json', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Export failed: ${response.status}`);
-                }
-                
-                // Get the blob from response
-                const blob = await response.blob();
-                
-                // Create download link
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                
-                // Generate filename with current date
-                const now = new Date();
-                const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-                a.download = `EDI_Orders_${dateStr}.json`;
-                
-                // Trigger download
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                this.showMessage('JSON file downloaded successfully!', 'success');
-                console.log('✅ JSON export completed');
-                
-            } catch (error) {
-                console.error('❌ JSON export error:', error);
-                this.showMessage('Failed to export JSON file: ' + error.message, 'error');
-            }
-        };
-
-        // ============ GLOBAL EXPORT FUNCTIONS ============
+        // ============ SIMPLIFIED GLOBAL EXPORT FUNCTIONS ============
         window.exportToCSV = function() {
             if (window.ediDashboard) {
                 window.ediDashboard.exportToCSV();
-            } else {
-                console.error('❌ EDI Dashboard not found');
-                alert('Export functionality not available');
-            }
-        };
-
-        window.exportToJSON = function() {
-            if (window.ediDashboard) {
-                window.ediDashboard.exportToJSON();
             } else {
                 console.error('❌ EDI Dashboard not found');
                 alert('Export functionality not available');

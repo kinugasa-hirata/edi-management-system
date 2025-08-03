@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDI Management System - Material Stock</title>
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="/css/dashboard-styles.css">
+    <style>
+        /* Material stock specific styles */
+        .stock-groups {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .stock-group {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .group-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .group-icon {
+            font-size: 2rem;
+        }
+
+        .stock-input-section {
+            margin-bottom: 20px;
+        }
+
+        .stock-input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .stock-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .stock-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .stock-input:disabled {
+            background: #f3f4f6;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .stock-info {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stock-current {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .stock-current-label {
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .stock-current-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+
+        .stock-status {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .stock-status.sufficient {
+            color: #059669;
+        }
+
+        .stock-status.warning {
+            color: #f59e0b;
+        }
+
+        .stock-status.insufficient {
+            color: #dc2626;
+        }
+
+        .product-list {
+            margin-top: 15px;
+        }
+
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.9rem;
+        }
+
+        .product-item:last-child {
+            border-bottom: none;
+        }
+
+        .product-drawing {
+            font-family: monospace;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .consumption-summary {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .consumption-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .consumption-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .consumption-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .consumption-number.sufficient {
+            color: #059669;
+        }
+
+        .consumption-number.warning {
+            color: #f59e0b;
+        }
+
+        .consumption-number.insufficient {
+            color: #dc2626;
+        }
+
+        .consumption-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .stock-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .last-updated {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 12px 16px;
+            color: #92400e;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .chart-note {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            padding: 12px 16px;
+            color: #1e40af;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .calculation-details {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .calculation-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 6px;
+        }
+
+        .calculation-group h4 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .calculation-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.9rem;
+        }
+
+        .calculation-item:last-child {
+            border-bottom: none;
+        }
+
+        .calculation-date {
+            font-family: monospace;
+            color: #6b7280;
+        }
+
+        .calculation-quantity {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .calculation-running {
+            color: #4f46e5;
+            font-weight: 600;
+        }
+
+        .calculation-insufficient {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .stock-groups {
+                grid-template-columns: 1fr;
+            }
+            
+            .stock-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .consumption-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="user-info" id="userInfo">
+                <span id="userDisplay">Loading...</span>
+            </div>
+            <h1>📦 Material Stock Management</h1>
+            <p>Track and manage material inventory for production planning</p>
+        </div>
+
+        <!-- Navigation Bar -->
+        <div class="navigation-bar">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/forecast" class="nav-link">📈 Forecast</a>
+            <a href="/stock" class="nav-link active">📦 Material Stock</a>
+            <button class="btn btn-logout" onclick="logout()">🚪 Logout</button>
+        </div>
+
+        <div class="content">
+            <div id="messageContainer"></div>
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                Loading stock data...
+            </div>
+
+            <!-- Stock Controls -->
+            <div class="stock-controls">
+                <button class="btn btn-primary admin-only" id="saveStockBtn" onclick="saveAllStocks()">
+                    💾 Save All Stock Levels
+                </button>
+                
+                <button class="btn btn-success" id="refreshStockBtn" onclick="refreshStockData()">
+                    🔄 Refresh Calculations
+                </button>
+                
+                <button class="btn btn-info" id="showCalculationBtn" onclick="toggleCalculationDetails()">
+                    🧮 Show Calculations
+                </button>
+                
+                <div class="read-only-notice" id="readOnlyNotice">
+                    👁️ View-Only Mode - Contact admin to edit stock levels
+                </div>
+            </div>
+
+            <!-- Last Updated Notice -->
+            <div class="last-updated" id="lastUpdatedNotice" style="display: none;">
+                📅 Stock levels last updated: <span id="lastUpdatedTime">-</span>
+            </div>
+
+            <!-- Chart Integration Notice -->
+            <div class="chart-note">
+                📊 <strong>Chart Integration:</strong> Stock calculations automatically update dashboard charts. 
+                Bars become transparent (outline only) when material stock is insufficient for that delivery date.
+            </div>
+
+            <!-- Consumption Summary -->
+            <div class="consumption-summary">
+                <h3 style="margin-bottom: 15px; color: #1f2937;">📈 Material Consumption Overview</h3>
+                <div class="consumption-grid">
+                    <div class="consumption-item">
+                        <div class="consumption-number sufficient" id="totalSufficient">0</div>
+                        <div class="consumption-label">Sufficient Stock</div>
+                    </div>
+                    <div class="consumption-item">
+                        <div class="consumption-number warning" id="totalWarning">0</div>
+                        <div class="consumption-label">Low Stock Warning</div>
+                    </div>
+                    <div class="consumption-item">
+                        <div class="consumption-number insufficient" id="totalInsufficient">0</div>
+                        <div class="consumption-label">Insufficient Stock</div>
+                    </div>
+                    <div class="consumption-item">
+                        <div class="consumption-number" id="totalDaysStock" style="color: #4f46e5;">0</div>
+                        <div class="consumption-label">Days of Stock</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Material Stock Groups -->
+            <div class="stock-groups">
+                <!-- Group 1: ｱｯﾊﾟﾌﾞﾚｰﾑ -->
+                <div class="stock-group">
+                    <div class="group-header">
+                        <div>
+                            <div class="group-title">🔧 ｱｯﾊﾟﾌﾞﾚｰﾑ</div>
+                            <div style="font-size: 0.9rem; color: #6b7280;">Upper Frame Components</div>
+                        </div>
+                        <div class="group-icon">🔧</div>
+                    </div>
+                    
+                    <div class="stock-input-section">
+                        <label class="stock-input-label" for="stock-upper-frame">
+                            Current Material Stock (pieces)
+                        </label>
+                        <input type="number" 
+                               id="stock-upper-frame" 
+                               class="stock-input" 
+                               data-group="upper-frame"
+                               placeholder="Enter stock quantity"
+                               min="0"
+                               onchange="updateStockCalculations()">
+                    </div>
+                    
+                    <div class="stock-info">
+                        <div class="stock-current">
+                            <span class="stock-current-label">Available Stock:</span>
+                            <span class="stock-current-value" id="available-upper-frame">-</span>
+                        </div>
+                        <div class="stock-status" id="status-upper-frame">
+                            Enter stock quantity to see consumption analysis
+                        </div>
+                    </div>
+                    
+                    <div class="product-list">
+                        <h4 style="margin-bottom: 10px; color: #374151;">Products in this group:</h4>
+                        <div class="product-item">
+                            <span class="product-drawing">PP4166-4681P003</span>
+                            <span style="color: #6b7280;">ｱｯﾊﾟﾌﾞﾚｰﾑ</span>
+                        </div>
+                        <div class="product-item">
+                            <span class="product-drawing">PP4166-4681P004</span>
+                            <span style="color: #6b7280;">ｱｯﾊﾟﾌﾞﾚｰﾑ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 2: ﾄｯﾌﾟﾌﾟﾚｰﾄ -->
+                <div class="stock-group">
+                    <div class="group-header">
+                        <div>
+                            <div class="group-title">📱 ﾄｯﾌﾟﾌﾟﾚｰﾄ</div>
+                            <div style="font-size: 0.9rem; color: #6b7280;">Top Plate Components</div>
+                        </div>
+                        <div class="group-icon">📱</div>
+                    </div>
+                    
+                    <div class="stock-input-section">
+                        <label class="stock-input-label" for="stock-top-plate">
+                            Current Material Stock (pieces)
+                        </label>
+                        <input type="number" 
+                               id="stock-top-plate" 
+                               class="stock-input" 
+                               data-group="top-plate"
+                               placeholder="Enter stock quantity"
+                               min="0"
+                               onchange="updateStockCalculations()">
+                    </div>
+                    
+                    <div class="stock-info">
+                        <div class="stock-current">
+                            <span class="stock-current-label">Available Stock:</span>
+                            <span class="stock-current-value" id="available-top-plate">-</span>
+                        </div>
+                        <div class="stock-status" id="status-top-plate">
+                            Enter stock quantity to see consumption analysis
+                        </div>
+                    </div>
+                    
+                    <div class="product-list">
+                        <h4 style="margin-bottom: 10px; color: #374151;">Products in this group:</h4>
+                        <div class="product-item">
+                            <span class="product-drawing">PP4166-4726P003</span>
+                            <span style="color: #6b7280;">ﾄｯﾌﾟﾌﾟﾚｰﾄ</span>
+                        </div>
+                        <div class="product-item">
+                            <span class="product-drawing">PP4166-4726P004</span>
+                            <span style="color: #6b7280;">ﾄｯﾌﾟﾌﾟﾚｰﾄ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 3: ﾐﾄﾞﾙﾌﾚｰﾑ -->
+                <div class="stock-group">
+                    <div class="group-header">
+                        <div>
+                            <div class="group-title">⚙️ ﾐﾄﾞﾙﾌﾚｰﾑ</div>
+                            <div style="font-size: 0.9rem; color: #6b7280;">Middle Frame Components</div>
+                        </div>
+                        <div class="group-icon">⚙️</div>
+                    </div>
+                    
+                    <div class="stock-input-section">
+                        <label class="stock-input-label" for="stock-middle-frame">
+                            Current Material Stock (pieces)
+                        </label>
+                        <input type="number" 
+                               id="stock-middle-frame" 
+                               class="stock-input" 
+                               data-group="middle-frame"
+                               placeholder="Enter stock quantity"
+                               min="0"
+                               onchange="updateStockCalculations()">
+                    </div>
+                    
+                    <div class="stock-info">
+                        <div class="stock-current">
+                            <span class="stock-current-label">Available Stock:</span>
+                            <span class="stock-current-value" id="available-middle-frame">-</span>
+                        </div>
+                        <div class="stock-status" id="status-middle-frame">
+                            Enter stock quantity to see consumption analysis
+                        </div>
+                    </div>
+                    
+                    <div class="product-list">
+                        <h4 style="margin-bottom: 10px; color: #374151;">Products in this group:</h4>
+                        <div class="product-item">
+                            <span class="product-drawing">PP4166-4731P002</span>
+                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ</span>
+                        </div>
+                        <div class="product-item">
+                            <span class="product-drawing">PP4166-7106P001</span>
+                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ</span>
+                        </div>
+                        <div class="product-item">
+                            <span class="product-drawing">PP4166-7106P003</span>
+                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Calculation Display -->
+            <div class="calculation-details" id="calculationDetails" style="display: none;">
+                <h3 style="margin-bottom: 20px; color: #1f2937;">🧮 Detailed Stock Consumption Calculations</h3>
+                <div id="calculationContent">
+                    <!-- Calculation details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        class MaterialStockManager {
+            constructor() {
+                this.currentUser = null;
+                this.userPermissions = { canEdit: false, canView: true };
+                this.stockData = {};
+                this.ediData = [];
+                this.forecastData = {};
+                this.stockCalculations = {};
+                this.lastSaved = null;
+                
+                // Product groups mapping
+                this.productGroups = {
+                    'upper-frame': {
+                        name: 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
+                        products: ['PP4166-4681P003', 'PP4166-4681P004']
+                    },
+                    'top-plate': {
+                        name: 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
+                        products: ['PP4166-4726P003', 'PP4166-4726P004']
+                    },
+                    'middle-frame': {
+                        name: 'ﾐﾄﾞﾙﾌﾚｰﾑ',
+                        products: ['PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003']
+                    }
+                };
+            }
+
+            // ============ AUTHENTICATION METHODS ============
+            async loadUserInfo() {
+                try {
+                    const response = await fetch('/api/user-info');
+                    if (response.ok) {
+                        const userInfo = await response.json();
+                        this.currentUser = userInfo;
+                        this.userPermissions = userInfo.permissions;
+                        
+                        this.updateUIForPermissions();
+                        this.updateUserDisplay(userInfo);
+                        
+                        return userInfo;
+                    } else {
+                        console.log('❌ User not authenticated, redirecting to login');
+                        window.location.href = '/';
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('Error loading user info:', error);
+                    this.showMessage('Failed to load user information', 'error');
+                    return null;
+                }
+            }
+
+            updateUserDisplay(userInfo) {
+                const userDisplay = document.getElementById('userDisplay');
+                if (userDisplay) {
+                    const roleClass = userInfo.role === 'admin' ? 'admin' : 'user';
+                    const roleText = userInfo.role === 'admin' ? 'ADMIN' : 'VIEW ONLY';
+                    userDisplay.innerHTML = `
+                        ${userInfo.username}
+                        <span class="user-role ${roleClass}">${roleText}</span>
+                    `;
+                }
+            }
+
+            updateUIForPermissions() {
+                const adminElements = document.querySelectorAll('.admin-only');
+                const readOnlyNotice = document.getElementById('readOnlyNotice');
+
+                if (!this.userPermissions.canEdit) {
+                    adminElements.forEach(element => {
+                        element.classList.add('disabled');
+                        if (element.tagName === 'BUTTON') {
+                            element.disabled = true;
+                        }
+                    });
+                    
+                    // Disable stock inputs
+                    document.querySelectorAll('.stock-input').forEach(input => {
+                        input.disabled = true;
+                    });
+                    
+                    if (readOnlyNotice) readOnlyNotice.classList.add('show');
+                } else {
+                    adminElements.forEach(element => {
+                        element.classList.remove('disabled');
+                        if (element.tagName === 'BUTTON') {
+                            element.disabled = false;
+                        }
+                    });
+                    
+                    if (readOnlyNotice) readOnlyNotice.classList.remove('show');
+                }
+            }
+
+            // ============ DATA LOADING METHODS ============
+            async loadEDIData() {
+                try {
+                    const response = await fetch('/api/edi-data');
+                    if (response.ok) {
+                        this.ediData = await response.json();
+                        console.log('📊 Loaded EDI data:', this.ediData.length, 'orders');
+                    }
+                } catch (error) {
+                    console.error('Error loading EDI data:', error);
+                }
+            }
+
+            async loadForecastData() {
+                try {
+                    const response = await fetch('/api/forecasts');
+                    if (response.ok) {
+                        const forecasts = await response.json();
+                        this.forecastData = {};
+                        
+                        forecasts.forEach(forecast => {
+                            const key = `${forecast.drawing_number}-${forecast.month_date}`;
+                            this.forecastData[key] = parseInt(forecast.quantity) || 0;
+                        });
+                        
+                        console.log('📈 Loaded forecast data:', Object.keys(this.forecastData).length, 'entries');
+                    }
+                } catch (error) {
+                    console.error('Error loading forecast data:', error);
+                }
+            }
+
+            async loadStockData() {
+                try {
+                    // Load from localStorage for now (could be extended to API)
+                    const savedStocks = localStorage.getItem('materialStocks');
+                    if (savedStocks) {
+                        this.stockData = JSON.parse(savedStocks);
+                        
+                        // Update UI with saved values
+                        Object.keys(this.stockData).forEach(group => {
+                            const input = document.getElementById(`stock-${group}`);
+                            if (input) {
+                                input.value = this.stockData[group].quantity || '';
+                            }
+                        });
+                        
+                        // Show last saved time
+                        this.lastSaved = this.stockData.lastSaved || null;
+                        this.updateLastSavedDisplay();
+                    }
+                } catch (error) {
+                    console.error('Error loading stock data:', error);
+                }
+            }
+
+            // ============ STOCK CALCULATION METHODS ============
+            calculateStockConsumption() {
+                console.log('🧮 Starting stock consumption calculation...');
+                
+                this.stockCalculations = {};
+                
+                Object.keys(this.productGroups).forEach(groupKey => {
+                    const group = this.productGroups[groupKey];
+                    const stockInput = document.getElementById(`stock-${groupKey}`);
+                    const currentStock = parseInt(stockInput.value) || 0;
+                    
+                    console.log(`📦 Calculating for ${group.name} with ${currentStock} stock`);
+                    
+                    // Get all orders and forecasts for this group
+                    const consumption = this.getGroupConsumption(group.products, currentStock);
+                    
+                    this.stockCalculations[groupKey] = {
+                        ...consumption,
+                        currentStock: currentStock,
+                        groupName: group.name
+                    };
+                    
+                    // Update UI
+                    this.updateGroupDisplay(groupKey, consumption, currentStock);
+                });
+                
+                // Update summary
+                this.updateConsumptionSummary();
+                
+                console.log('✅ Stock calculations completed:', this.stockCalculations);
+            }
+
+            getGroupConsumption(products, initialStock) {
+                const items = [];
+                let runningStock = initialStock;
+                let sufficientCount = 0;
+                let warningCount = 0;
+                let insufficientCount = 0;
+                
+                // Collect all orders and forecasts with dates
+                products.forEach(product => {
+                    // Add EDI orders (excluding "ok" status)
+                    const orders = this.ediData.filter(order => 
+                        order.drawing_number === product && 
+                        (!order.status || order.status.toLowerCase() !== 'ok')
+                    );
+                    
+                    orders.forEach(order => {
+                        items.push({
+                            type: 'order',
+                            date: order.delivery_date,
+                            quantity: parseInt(order.quantity) || 0,
+                            product: product,
+                            orderNumber: order.order_number,
+                            status: order.status || ''
+                        });
+                    });
+                    
+                    // Add forecast data
+                    Object.keys(this.forecastData).forEach(key => {
+                        if (key.startsWith(product + '-')) {
+                            const monthDate = key.split('-')[1];
+                            const quantity = this.forecastData[key];
+                            
+                            if (quantity > 0) {
+                                // Convert MM/01 to YYYY/MM/01 format for sorting
+                                const parts = monthDate.split('/');
+                                const month = parts[0];
+                                const currentYear = new Date().getFullYear();
+                                const fullDate = `${currentYear}/${month}/01`;
+                                
+                                items.push({
+                                    type: 'forecast',
+                                    date: fullDate,
+                                    quantity: quantity,
+                                    product: product,
+                                    monthDate: monthDate
+                                });
+                            }
+                        }
+                    });
+                });
+                
+                // Sort by date chronologically
+                items.sort((a, b) => {
+                    const dateA = this.parseDate(a.date);
+                    const dateB = this.parseDate(b.date);
+                    return dateA - dateB;
+                });
+                
+                // Calculate consumption
+                const calculations = [];
+                items.forEach(item => {
+                    const beforeStock = runningStock;
+                    runningStock -= item.quantity;
+                    const afterStock = Math.max(0, runningStock);
+                    
+                    const sufficient = beforeStock >= item.quantity;
+                    
+                    if (sufficient) {
+                        sufficientCount++;
+                    } else if (beforeStock > 0) {
+                        warningCount++;
+                    } else {
+                        insufficientCount++;
+                    }
+                    
+                    calculations.push({
+                        ...item,
+                        beforeStock,
+                        afterStock,
+                        sufficient,
+                        shortfall: sufficient ? 0 : item.quantity - beforeStock
+                    });
+                });
+                
+                return {
+                    items: calculations,
+                    finalStock: Math.max(0, runningStock),
+                    sufficientCount,
+                    warningCount,
+                    insufficientCount,
+                    totalItems: items.length
+                };
+            }
+
+            parseDate(dateString) {
+                if (!dateString) return new Date('9999-12-31');
+                try {
+                    const [year, month, day] = dateString.split('/');
+                    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                } catch {
+                    return new Date('9999-12-31');
+                }
+            }
+
+            updateGroupDisplay(groupKey, consumption, currentStock) {
+                const availableEl = document.getElementById(`available-${groupKey}`);
+                const statusEl = document.getElementById(`status-${groupKey}`);
+                
+                if (availableEl) {
+                    availableEl.textContent = consumption.finalStock.toLocaleString();
+                }
+                
+                if (statusEl) {
+                    const totalConsumption = currentStock - consumption.finalStock;
+                    let statusText = '';
+                    let statusClass = '';
+                    
+                    if (consumption.insufficientCount > 0) {
+                        statusText = `⚠️ ${consumption.insufficientCount} items cannot be fulfilled due to insufficient stock`;
+                        statusClass = 'insufficient';
+                    } else if (consumption.warningCount > 0) {
+                        statusText = `⚠️ ${consumption.warningCount} items will partially deplete stock`;
+                        statusClass = 'warning';
+                    } else if (totalConsumption > 0) {
+                        statusText = `✅ All ${consumption.totalItems} items can be fulfilled (${totalConsumption} pieces consumed)`;
+                        statusClass = 'sufficient';
+                    } else {
+                        statusText = 'No consumption calculated';
+                        statusClass = '';
+                    }
+                    
+                    statusEl.textContent = statusText;
+                    statusEl.className = `stock-status ${statusClass}`;
+                }
+            }
+
+            updateConsumptionSummary() {
+                let totalSufficient = 0;
+                let totalWarning = 0;
+                let totalInsufficient = 0;
+                let totalDays = 0;
+                
+                Object.values(this.stockCalculations).forEach(calc => {
+                    totalSufficient += calc.sufficientCount || 0;
+                    totalWarning += calc.warningCount || 0;
+                    totalInsufficient += calc.insufficientCount || 0;
+                });
+                
+                // Calculate average days of stock (simplified)
+                const totalStock = Object.values(this.stockCalculations).reduce((sum, calc) => sum + calc.currentStock, 0);
+                const totalConsumption = Object.values(this.stockCalculations).reduce((sum, calc) => 
+                    sum + (calc.currentStock - calc.finalStock), 0);
+                
+                if (totalConsumption > 0) {
+                    totalDays = Math.round(totalStock / (totalConsumption / 30)); // Rough estimate
+                }
+                
+                document.getElementById('totalSufficient').textContent = totalSufficient;
+                document.getElementById('totalWarning').textContent = totalWarning;
+                document.getElementById('totalInsufficient').textContent = totalInsufficient;
+                document.getElementById('totalDaysStock').textContent = totalDays;
+            }
+
+            // ============ SAVE/LOAD METHODS ============
+            async saveAllStocks() {
+                if (!this.userPermissions.canEdit) {
+                    this.showMessage('You do not have permission to save stock data', 'error');
+                    return;
+                }
+
+                try {
+                    const stockData = {};
+                    
+                    Object.keys(this.productGroups).forEach(groupKey => {
+                        const input = document.getElementById(`stock-${groupKey}`);
+                        const quantity = parseInt(input.value) || 0;
+                        
+                        stockData[groupKey] = {
+                            quantity: quantity,
+                            groupName: this.productGroups[groupKey].name,
+                            lastUpdated: new Date().toISOString()
+                        };
+                    });
+                    
+                    stockData.lastSaved = new Date().toISOString();
+                    
+                    // Save to localStorage (extend to API later)
+                    localStorage.setItem('materialStocks', JSON.stringify(stockData));
+                    
+                    this.stockData = stockData;
+                    this.lastSaved = stockData.lastSaved;
+                    
+                    this.updateLastSavedDisplay();
+                    this.showMessage('Stock levels saved successfully!', 'success');
+                    
+                    // Recalculate after saving
+                    this.calculateStockConsumption();
+                    
+                } catch (error) {
+                    console.error('Error saving stock data:', error);
+                    this.showMessage('Failed to save stock data', 'error');
+                }
+            }
+
+            updateLastSavedDisplay() {
+                const notice = document.getElementById('lastUpdatedNotice');
+                const timeEl = document.getElementById('lastUpdatedTime');
+                
+                if (this.lastSaved && notice && timeEl) {
+                    const saveTime = new Date(this.lastSaved);
+                    timeEl.textContent = saveTime.toLocaleString();
+                    notice.style.display = 'block';
+                } else if (notice) {
+                    notice.style.display = 'none';
+                }
+            }
+
+            // ============ UI METHODS ============
+            showLoading(show) {
+                const loading = document.getElementById('loadingIndicator');
+                if (loading) {
+                    loading.style.display = show ? 'block' : 'none';
+                }
+            }
+
+            showMessage(message, type) {
+                const container = document.getElementById('messageContainer');
+                if (!container) return;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+                messageDiv.textContent = message;
+                
+                container.appendChild(messageDiv);
+                
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 5000);
+            }
+
+            toggleCalculationDetails() {
+                const details = document.getElementById('calculationDetails');
+                const btn = document.getElementById('showCalculationBtn');
+                
+                if (details.style.display === 'none') {
+                    this.generateCalculationDisplay();
+                    details.style.display = 'block';
+                    btn.textContent = '🙈 Hide Calculations';
+                } else {
+                    details.style.display = 'none';
+                    btn.textContent = '🧮 Show Calculations';
+                }
+            }
+
+            generateCalculationDisplay() {
+                const content = document.getElementById('calculationContent');
+                if (!content) return;
+                
+                let html = '';
+                
+                Object.keys(this.stockCalculations).forEach(groupKey => {
+                    const calc = this.stockCalculations[groupKey];
+                    
+                    html += `
+                        <div class="calculation-group">
+                            <h4>${calc.groupName} (Initial Stock: ${calc.currentStock})</h4>
+                            ${calc.items.map(item => `
+                                <div class="calculation-item">
+                                    <div>
+                                        <span class="calculation-date">${item.date}</span>
+                                        <span style="margin-left: 10px;">${item.type === 'order' ? '📋' : '📈'} ${item.product}</span>
+                                        ${item.orderNumber ? `<small style="color: #6b7280;"> (${item.orderNumber})</small>` : ''}
+                                    </div>
+                                    <div>
+                                        <span class="calculation-quantity">-${item.quantity}</span>
+                                        <span class="calculation-running ${item.sufficient ? '' : 'calculation-insufficient'}" style="margin-left: 10px;">
+                                            → ${item.afterStock} ${item.sufficient ? '' : '(INSUFFICIENT)'}
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                });
+                
+                content.innerHTML = html;
+            }
+
+            async logout() {
+                try {
+                    await fetch('/api/logout', { method: 'POST' });
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    window.location.href = '/';
+                }
+            }
+
+            // ============ INITIALIZATION ============
+            async initialize() {
+                try {
+                    console.log('🚀 Initializing Material Stock Manager...');
+                    
+                    this.showLoading(true);
+                    
+                    await this.loadUserInfo();
+                    await this.loadEDIData();
+                    await this.loadForecastData();
+                    await this.loadStockData();
+                    
+                    // Initial calculations
+                    this.calculateStockConsumption();
+                    
+                    console.log('✅ Material Stock Manager initialized successfully');
+                } catch (error) {
+                    console.error('❌ Failed to initialize material stock manager:', error);
+                    this.showMessage('Failed to initialize material stock manager', 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+        }
+
+        // Create global instance
+        const materialStockManager = new MaterialStockManager();
+
+        // Global functions
+        function updateStockCalculations() {
+            materialStockManager.calculateStockConsumption();
+        }
+
+        function saveAllStocks() {
+            materialStockManager.saveAllStocks();
+        }
+
+        function refreshStockData() {
+            materialStockManager.initialize();
+        }
+
+        function toggleCalculationDetails() {
+            materialStockManager.toggleCalculationDetails();
+        }
+
+        function logout() {
+            materialStockManager.logout();
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            materialStockManager.initialize();
+        });
+    </script>
+</body>
+</html>
