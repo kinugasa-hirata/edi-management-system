@@ -14,8 +14,298 @@ A comprehensive web application for managing Electronic Data Interchange (EDI) o
 
 ## 📊 Data Structure
 
-The system manages 6 columns of EDI data:
+The system manages 6 columns of EDI data:# 📊 Enhanced EDI Management System
 
+A comprehensive Electronic Data Interchange (EDI) management system with integrated material stock management, production forecasting, and real-time dashboard analytics.
+
+## 🚀 Features
+
+### Core EDI Management
+- **📁 WebEDI File Import**: Support for CSV, TSV, and Excel formats with automatic encoding detection
+- **📊 Real-time Dashboard**: Interactive charts with delivery date visualization
+- **👥 Multi-user Access**: Admin (edit) and User (view-only) roles
+- **💾 Data Export**: CSV and JSON export functionality
+- **🔄 Live Updates**: Cross-window synchronization between dashboard, forecast, and stock pages
+
+### Advanced Material Stock Integration
+- **📦 Material Stock Management**: Track inventory for 3 product groups
+  - 🔧 ｱｯﾊﾟﾌﾞﾚｰﾑ (Upper Frame): PP4166-4681P003, PP4166-4681P004
+  - 📱 ﾄｯﾌﾟﾌﾟﾚｰﾄ (Top Plate): PP4166-4726P003, PP4166-4726P004  
+  - ⚙️ ﾐﾄﾞﾙﾌﾚｰﾑ (Middle Frame): PP4166-4731P002, PP4166-7106P001, PP4166-7106P003
+
+- **🧮 Smart Consumption Calculation**: 
+  - Chronological stock consumption simulation
+  - Excludes completed orders (status = "ok")
+  - Includes forecast data as future consumption
+  - Real-time stock sufficiency analysis
+
+- **📈 Visual Stock Integration**: 
+  - Charts show material availability in real-time
+  - Sufficient stock: Normal filled bars
+  - Insufficient stock: Transparent bars with dashed outlines
+  - Proper priority stacking: OK (bottom) → Comments (middle) → No Status (top)
+
+### Production Forecast Management
+- **📈 Monthly Forecasting**: Integrated 12-month rolling forecast
+- **📊 Excel Import**: Automatic month column detection (Japanese/English)
+- **🔄 Dashboard Integration**: Forecast data appears as future demand
+- **💾 Persistent Storage**: Database + localStorage synchronization
+
+## 🛠️ Installation
+
+### Prerequisites
+- Node.js 16+ 
+- npm or yarn
+- Optional: PostgreSQL for production (uses Vercel Postgres when deployed)
+
+### Local Development Setup
+
+1. **Clone Repository**
+```bash
+git clone https://github.com/your-username/edi-management-system.git
+cd edi-management-system
+```
+
+2. **Install Dependencies**
+```bash
+npm install
+```
+
+3. **Configure Environment**
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+4. **Start Development Server**
+```bash
+npm run dev
+# or
+npm start
+```
+
+5. **Access Application**
+- Open http://localhost:3000
+- Login with:
+  - Admin: username `admin`, any password
+  - User: username `user`, any password
+
+## 🏗️ Deployment
+
+### Vercel Deployment (Recommended)
+
+1. **Connect to Vercel**
+```bash
+npm i -g vercel
+vercel login
+vercel
+```
+
+2. **Add Vercel Postgres**
+- Go to Vercel Dashboard → Your Project → Storage
+- Create → Postgres Database
+- Environment variables will be automatically set
+
+3. **Deploy**
+```bash
+vercel --prod
+```
+
+### Manual Deployment
+
+1. **Set Environment Variables**
+```bash
+export NODE_ENV=production
+export SESSION_SECRET=your-secure-session-secret
+# Add database connection strings
+```
+
+2. **Build and Start**
+```bash
+npm run build
+npm start
+```
+
+## 📖 Usage Guide
+
+### 1. Import EDI Data
+1. Login as admin user
+2. Click "📁 Choose EDI File" 
+3. Select your WebEDI CSV/Excel file
+4. Click "📤 Import WebEDI Data"
+5. Data will be processed and charts will update
+
+### 2. Manage Material Stocks
+1. Navigate to "📦 Material Stock" page
+2. Enter current inventory quantities for each product group
+3. Click "💾 Save All Stock Levels"
+4. Dashboard charts will immediately show stock availability
+
+### 3. Setup Production Forecasts  
+1. Navigate to "📈 Forecast" page
+2. Either:
+   - Manually enter quantities in the table
+   - Import Excel file with month columns
+3. Click "💾 Save All Changes"
+4. Forecasts appear as future demand in dashboard charts
+
+### 4. Monitor Dashboard
+- **📊 All Orders**: Complete overview with table and stats
+- **Product Pages**: Individual charts for each drawing number
+- **📈 Real-time Updates**: Charts reflect current stock availability
+- **📁 Export**: Download data as CSV or JSON
+
+## 🔧 API Endpoints
+
+### Authentication
+- `POST /api/login` - User login
+- `POST /api/logout` - User logout  
+- `GET /api/user-info` - Get current user info
+
+### EDI Data
+- `GET /api/edi-data` - Get all EDI orders
+- `PUT /api/edi-data/:id` - Update order status
+- `POST /api/import-edi` - Import EDI file
+
+### Forecasts
+- `GET /api/forecasts` - Get all forecasts
+- `POST /api/forecasts` - Save individual forecast
+- `POST /api/forecasts/batch` - Save multiple forecasts
+- `POST /api/import-forecast` - Import forecast Excel
+- `DELETE /api/forecasts/clear` - Clear all forecasts
+
+### Material Stocks  
+- `GET /api/material-stocks` - Get all stock levels
+- `POST /api/material-stocks` - Save stock levels
+- `DELETE /api/material-stocks/clear` - Clear all stocks
+
+### Exports
+- `GET /api/export/csv` - Export EDI data as CSV
+- `GET /api/export/json` - Export EDI data as JSON
+
+## 🏗️ Technical Architecture
+
+### Frontend
+- **Vanilla JavaScript**: No framework dependencies
+- **SVG Charts**: Custom-built interactive charts
+- **Real-time Sync**: localStorage + cross-window communication
+- **Responsive Design**: Mobile-friendly interface
+
+### Backend  
+- **Express.js**: RESTful API server
+- **Session Management**: Express-session with secure cookies
+- **File Processing**: Multer + CSV-parser + XLSX
+- **Database**: PostgreSQL (production) / In-memory (development)
+
+### Data Flow
+1. **Import**: WebEDI files → CSV parsing → Database storage
+2. **Processing**: Orders + Forecasts → Stock consumption calculation
+3. **Visualization**: Real-time chart rendering with stock integration
+4. **Export**: Database → Formatted files (CSV/JSON)
+
+## 🧮 Stock Calculation Logic
+
+The system implements sophisticated material stock consumption logic:
+
+### Consumption Priority
+1. **Excludes Completed**: Orders with status "ok" don't consume stock
+2. **Chronological Processing**: Orders processed by delivery date (earliest first)
+3. **Includes Forecasts**: Future forecast quantities consume projected stock
+4. **Group-based**: Stock shared within product groups (Upper Frame, Top Plate, Middle Frame)
+
+### Visual Indicators
+- **🟢 Sufficient Stock**: Normal filled colored bars
+- **🔴 Insufficient Stock**: Transparent bars with dashed red outlines  
+- **⚠️ Partial Stock**: Warning indicators for partial fulfillment
+
+### Calculation Example
+```
+Initial Stock: 1,000 pieces (Upper Frame)
+Orders: 300 (2025/01/15), 400 (2025/01/20), 500 (2025/02/01)
+Forecast: 200 (2025/02/01)
+
+Result:
+- 2025/01/15: 1,000 - 300 = 700 ✅ SUFFICIENT
+- 2025/01/20: 700 - 400 = 300 ✅ SUFFICIENT  
+- 2025/02/01: 300 - 500 = -200 ❌ INSUFFICIENT (chart shows transparent)
+- 2025/02/01 Forecast: Already insufficient
+```
+
+## 🔍 Debug Features
+
+### Testing Functions (Available in Browser Console)
+```javascript
+// Test forecast integration
+testForecastDebug()
+testForecastIntegrity()
+
+// Test stock calculations  
+testStockIntegration()
+
+// Test API connections
+testForecastAPI()
+testSessionDebug()
+
+// Force refresh charts
+testForceRefreshCharts()
+```
+
+### Debug Endpoints
+- `GET /api/debug/forecasts` - Inspect forecast data
+- `GET /api/debug/stocks` - Inspect stock calculations
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+1. **File Import Fails**
+   - Check file format (CSV/Excel)
+   - Verify Japanese encoding (Shift-JIS supported)
+   - Ensure file size < 4MB
+
+2. **Charts Not Updating**
+   - Check browser console for JavaScript errors
+   - Verify forecast data format (MM/01)
+   - Test with `testForceRefreshCharts()`
+
+3. **Stock Calculations Wrong**
+   - Verify stock input values are saved
+   - Check product group mappings
+   - Use debug endpoint: `/api/debug/stocks`
+
+4. **Cross-window Sync Issues**
+   - Check localStorage permissions
+   - Verify multiple tabs are in same domain
+   - Clear browser cache
+
+### Performance Tips
+- **Large Datasets**: System tested with 1000+ orders
+- **Memory Usage**: Uses efficient in-memory processing
+- **Chart Rendering**: Automatic optimization for mobile devices
+- **Database**: Indexed queries for fast data retrieval
+
+## 📝 License
+
+MIT License - see LICENSE file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)  
+5. Open Pull Request
+
+## 📞 Support
+
+For issues, questions, or feature requests:
+- 🐛 **Bug Reports**: GitHub Issues
+- 💡 **Feature Requests**: GitHub Discussions  
+- 📧 **Email**: your-email@company.com
+
+---
+
+**Built with ❤️ for efficient production planning and material management**
 1. **注文番号** (Order Number) - Format: LKxxxxxxxxx
 2. **注文数量** (Quantity) - Numeric values
 3. **品名** (Product Name) - Japanese product descriptions
