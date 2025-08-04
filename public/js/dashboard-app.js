@@ -1,9 +1,11 @@
-// dashboard-app.js - Consolidated EDI Dashboard Application
+// dashboard-app.js - Complete Enhanced EDI Dashboard Application with Stock Integration
 
 class EDIDashboard {
     constructor() {
         this.ediData = [];
         this.forecastData = {};
+        this.materialStocks = {}; // Material stock data
+        this.stockCalculations = {}; // Stock consumption calculations
         this.currentView = 'main';
         this.userPermissions = { canEdit: false, canView: true };
         this.currentUser = null;
@@ -28,6 +30,22 @@ class EDIDashboard {
             'PP4166-4731P002': 'ﾐﾄﾞﾙﾌﾚｰﾑ',
             'PP4166-7106P001': 'ﾐﾄﾞﾙﾌﾚｰﾑ',
             'PP4166-7106P003': 'ﾐﾄﾞﾙﾌﾚｰﾑ'
+        };
+
+        // Product group mappings for material stock calculations
+        this.productGroups = {
+            'upper-frame': {
+                name: 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
+                products: ['PP4166-4681P003', 'PP4166-4681P004']
+            },
+            'top-plate': {
+                name: 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
+                products: ['PP4166-4726P003', 'PP4166-4726P004']
+            },
+            'middle-frame': {
+                name: 'ﾐﾄﾞﾙﾌﾚｰﾑ',
+                products: ['PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003']
+            }
         };
     }
 
@@ -143,9 +161,15 @@ class EDIDashboard {
             // Load forecast data
             await this.loadForecastData();
             
+            // Load material stock data and calculate consumption
+            await this.loadMaterialStockData();
+            
             // Update UI
             this.renderTable();
             this.updateAllProductCharts();
+            
+            // Notify other windows about data update
+            this.notifyOtherWindows('EDI_UPDATED');
             
         } catch (error) {
             this.showMessage('Failed to load data: ' + error.message, 'error');
@@ -155,7 +179,7 @@ class EDIDashboard {
         }
     }
 
-    // ENHANCED - Forecast data loading with better debugging and type conversion
+    // Enhanced forecast data loading with better debugging and type conversion
     async loadForecastData() {
         try {
             console.log('📈 Dashboard: Starting forecast data load...');
@@ -208,6 +232,291 @@ class EDIDashboard {
         } catch (error) {
             console.error('❌ Error loading forecast data:', error);
             // Don't show error message as forecast is optional
+        }
+    }
+
+    // Enhanced material stock data loading with localStorage fallback
+    async loadMaterialStockData() {
+        try {
+            console.log('📦 Dashboard: Loading material stock data...');
+            
+            let stockDataLoaded = false;
+            
+            // Try to load from API first
+            try {
+                const response = await fetch('/api/material-stocks');
+                if (response.ok) {
+                    const stockData = await response.json();
+                    // Convert API data to the format we need
+                    this.materialStocks = {};
+                    stockData.forEach(stock => {
+                        this.materialStocks[stock.group_key] = {
+                            quantity: stock.quantity,
+                            groupName: stock.group_name,
+                            lastUpdated: stock.updated_at
+                        };
+                    });
+                    console.log('📦 Loaded stock data from API:', this.materialStocks);
+                    stockDataLoaded = true;
+                }
+            } catch (apiError) {
+                console.warn('⚠️ API load failed, trying localStorage:', apiError);
+            }
+            
+            // Fallback to localStorage if API failed
+            if (!stockDataLoaded) {
+                try {
+                    const savedStocks = localStorage.getItem('materialStocks');
+                    if (savedStocks) {
+                        const stockData = JSON.parse(savedStocks);
+                        this.materialStocks = {};
+                        Object.keys(stockData).forEach(key => {
+                            if (key !== 'lastSaved' && key !== 'calculationsGenerated') {
+                                this.materialStocks[key] = stockData[key];
+                            }
+                        });
+                        console.log('📦 Loaded stock data from localStorage:', this.materialStocks);
+                        stockDataLoaded = true;
+                    }
+                } catch (localError) {
+                    console.error('❌ localStorage load also failed:', localError);
+                }
+            }
+            
+            // Load detailed calculations from localStorage if available
+            try {
+                const savedCalculations = localStorage.getItem('stockCalculations');
+                if (savedCalculations) {
+                    this.stockCalculations = JSON.parse(savedCalculations);
+                    console.log('📦 Loaded detailed stock calculations from localStorage');
+                }
+            } catch (calcError) {
+                console.warn('⚠️ Could not load stock calculations:', calcError);
+            }
+            
+            // Calculate stock consumption after loading
+            if (stockDataLoaded) {
+                this.calculateMaterialStockConsumption();
+            } else {
+                console.warn('⚠️ No stock data available - charts will show all items as sufficient');
+            }
+            
+        } catch (error) {
+            console.error('❌ Error loading material stock data:', error);
+            // Initialize empty stock data to prevent errors
+            this.materialStocks = {};
+            this.stockCalculations = {};
+        }
+    }
+
+    // Enhanced stock consumption calculation with better error handling
+    async calculateMaterialStockConsumption() {
+        console.log('🧮 Dashboard: Calculating comprehensive material stock consumption...');
+        
+        // Initialize if not exists
+        if (!this.stockCalculations) {
+            this.stockCalculations = {};
+        }
+        
+        Object.keys(this.productGroups).forEach(groupKey => {
+            const group = this.productGroups[groupKey];
+            const stockData = this.materialStocks[groupKey];
+            const currentStock = stockData ? (stockData.quantity || 0) : 0;
+            
+            console.log(`📦 Calculating for ${group.name} with ${currentStock} initial stock`);
+            
+            if (currentStock <= 0) {
+                // No stock available, all items are insufficient
+                this.stockCalculations[groupKey] = {
+                    currentStock: 0,
+                    itemAvailability: {},
+                    groupName: group.name,
+                    allItemsInsufficient: true
+                };
+                console.log(`⚠️ No stock for ${group.name} - all items will be insufficient`);
+                return;
+            }
+            
+            // Get all items (orders + forecasts) for this group's products
+            const allItems = this.getAllItemsForGroup(group.products);
+            
+            // Sort chronologically by delivery date
+            allItems.sort((a, b) => {
+                const dateA = this.parseDate(a.date);
+                const dateB = this.parseDate(b.date);
+                return dateA - dateB;
+            });
+            
+            console.log(`📦 Found ${allItems.length} items for ${group.name}`);
+            
+            // Calculate running stock consumption
+            let runningStock = currentStock;
+            const itemAvailability = {};
+            
+            allItems.forEach(item => {
+                const beforeStock = runningStock;
+                runningStock -= item.quantity;
+                const afterStock = Math.max(0, runningStock);
+                
+                const sufficient = beforeStock >= item.quantity;
+                
+                // Create unique key for this item
+                let itemKey;
+                if (item.type === 'order') {
+                    itemKey = `order-${item.id}`;
+                } else {
+                    itemKey = `forecast-${item.forecastKey}`;
+                }
+                
+                itemAvailability[itemKey] = {
+                    ...item,
+                    beforeStock,
+                    afterStock,
+                    sufficient,
+                    shortfall: sufficient ? 0 : item.quantity - beforeStock
+                };
+                
+                console.log(`📦 ${group.name}: ${itemKey} - Stock: ${beforeStock} → ${afterStock}, Sufficient: ${sufficient}`);
+            });
+            
+            this.stockCalculations[groupKey] = {
+                currentStock,
+                itemAvailability,
+                finalStock: Math.max(0, runningStock),
+                groupName: group.name,
+                allItemsInsufficient: false
+            };
+        });
+        
+        console.log('✅ Stock calculations completed:', this.stockCalculations);
+        
+        // Save calculations to localStorage for other pages
+        try {
+            localStorage.setItem('dashboardStockCalculations', JSON.stringify(this.stockCalculations));
+        } catch (error) {
+            console.warn('⚠️ Could not save calculations to localStorage:', error);
+        }
+    }
+
+    // Enhanced method to get all items for a group (used in stock calculations)
+    getAllItemsForGroup(products) {
+        const items = [];
+        
+        products.forEach(product => {
+            // Add EDI orders (excluding "ok" status as per requirements)
+            const orders = this.ediData.filter(order => 
+                order.drawing_number === product && 
+                (!order.status || order.status.toLowerCase().trim() !== 'ok')
+            );
+            
+            orders.forEach(order => {
+                items.push({
+                    type: 'order',
+                    date: order.delivery_date,
+                    quantity: parseInt(order.quantity) || 0,
+                    product: product,
+                    orderNumber: order.order_number,
+                    status: order.status || '',
+                    id: order.id,
+                    priority: this.getOrderPriority(order.status)
+                });
+            });
+            
+            // Add forecast data as future orders
+            Object.keys(this.forecastData).forEach(key => {
+                if (key.startsWith(product + '-')) {
+                    const monthDate = key.split('-').slice(1).join('-');
+                    const quantity = this.forecastData[key];
+                    
+                    if (quantity > 0) {
+                        // Convert MM/01 to YYYY/MM/01 format for sorting
+                        const parts = monthDate.split('/');
+                        const month = parts[0];
+                        const currentYear = new Date().getFullYear();
+                        const fullDate = `${currentYear}/${month}/01`;
+                        
+                        items.push({
+                            type: 'forecast',
+                            date: fullDate,
+                            quantity: quantity,
+                            product: product,
+                            monthDate: monthDate,
+                            forecastKey: key,
+                            priority: 3
+                        });
+                    }
+                }
+            });
+        });
+        
+        return items;
+    }
+
+    // Get order priority for stacking (0 = bottom/first, higher = top/last)
+    getOrderPriority(status) {
+        if (!status || status.trim() === '') {
+            return 2; // Blue/no comment (top)
+        } else if (status.toLowerCase().trim() === 'ok') {
+            return 0; // Green/OK (bottom - highest priority)
+        } else {
+            return 1; // Yellow/with comments (middle)
+        }
+    }
+
+    // Enhanced stock sufficiency check with better fallback logic
+    isItemStockSufficient(drawingNumber, item) {
+        try {
+            // Find which group this product belongs to
+            let groupKey = null;
+            Object.keys(this.productGroups).forEach(key => {
+                if (this.productGroups[key].products.includes(drawingNumber)) {
+                    groupKey = key;
+                }
+            });
+            
+            if (!groupKey) {
+                console.warn(`⚠️ Product ${drawingNumber} not found in any group`);
+                return true; // Default to sufficient if product not found
+            }
+            
+            const calculations = this.stockCalculations[groupKey];
+            if (!calculations) {
+                console.warn(`⚠️ No calculations found for group ${groupKey}`);
+                return true; // Default to sufficient if no calculations
+            }
+            
+            // If no stock at all, everything is insufficient
+            if (calculations.allItemsInsufficient || calculations.currentStock <= 0) {
+                return false;
+            }
+            
+            // Create item key based on type
+            let itemKey;
+            if (item.type === 'order') {
+                // Find the order ID from ediData
+                const order = this.ediData.find(o => 
+                    o.order_number === item.orderNumber && 
+                    o.drawing_number === drawingNumber
+                );
+                if (order) {
+                    itemKey = `order-${order.id}`;
+                }
+            } else if (item.type === 'forecast') {
+                itemKey = `forecast-${drawingNumber}-${item.monthDate}`;
+            }
+            
+            if (itemKey && calculations.itemAvailability[itemKey]) {
+                const result = calculations.itemAvailability[itemKey].sufficient;
+                console.log(`🔍 Stock check for ${itemKey}: ${result ? 'SUFFICIENT' : 'INSUFFICIENT'}`);
+                return result;
+            }
+            
+            console.warn(`⚠️ Item key ${itemKey} not found in availability calculations`);
+            return true; // Default to sufficient if not found
+            
+        } catch (error) {
+            console.error('❌ Error checking stock sufficiency:', error);
+            return true; // Default to sufficient on error
         }
     }
 
@@ -359,7 +668,7 @@ class EDIDashboard {
         this.updateAllProductCharts();
     }
 
-    // ============ FIXED EXPORT FUNCTIONALITY ============
+    // ============ ENHANCED EXPORT FUNCTIONALITY ============
     async exportToCSV() {
         try {
             console.log('📊 Starting CSV export...');
@@ -448,7 +757,7 @@ class EDIDashboard {
         }
     }
 
-    // ============ ENHANCED CHART METHODS ============
+    // ============ ENHANCED CHART METHODS WITH STOCK INTEGRATION ============
     parseDate(dateString) {
         if (!dateString) return null;
         try {
@@ -523,7 +832,7 @@ class EDIDashboard {
         }
     }
 
-    // 🔧 ENHANCED - Create bar chart with chronologically sorted forecast and order data
+    // Enhanced chart rendering with stock integration and proper stacking
     createBarChart(containerId, data, drawingNumber) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -531,7 +840,7 @@ class EDIDashboard {
         // Get forecast data for this drawing number
         const forecastBars = this.getForecastBarsForChart(drawingNumber, data);
         
-        // 🔧 ENHANCED: Merge and sort forecast and order data chronologically
+        // Merge and sort forecast and order data chronologically
         const combinedData = this.mergeForecastAndOrderData(data, forecastBars);
         
         if (combinedData.length === 0) {
@@ -582,48 +891,80 @@ class EDIDashboard {
         xAxis.setAttribute('y2', height - margin.bottom);
         svg.appendChild(xAxis);
         
-        // 🔧 ENHANCED: Draw bars in chronological order
+        // Draw bars with enhanced stock-based rendering and proper stacking
         combinedData.forEach((d, i) => {
             const totalBarHeight = (d.quantity / maxQuantity) * chartHeight;
             const x = margin.left + barSpacing + (i * (barWidth + barSpacing));
             const barBottom = height - margin.bottom;
             
             if (d.type === 'order') {
-                // Draw order bar with status-based coloring
+                // Sort orders by priority for proper stacking (OK at bottom, no status at top)
+                const sortedOrders = [...d.orders].sort((a, b) => {
+                    const aPriority = this.getOrderPriority(a.status);
+                    const bPriority = this.getOrderPriority(b.status);
+                    return aPriority - bPriority; // Lower priority number = bottom of stack
+                });
+                
                 let cumulativeHeight = 0;
-                d.orders.forEach((order, orderIndex) => {
+                sortedOrders.forEach((order, orderIndex) => {
                     const segmentHeight = (order.quantity / d.quantity) * totalBarHeight;
                     const segmentY = barBottom - cumulativeHeight - segmentHeight;
                     const statusColor = this.getStatusColor(order.status);
+                    
+                    // Check if this specific order has sufficient stock
+                    const orderItem = {
+                        type: 'order',
+                        orderNumber: order.orderNumber,
+                        date: d.date
+                    };
+                    const hasStock = this.isItemStockSufficient(drawingNumber, orderItem);
                     
                     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('x', x);
                     rect.setAttribute('y', segmentY);
                     rect.setAttribute('width', barWidth);
                     rect.setAttribute('height', segmentHeight);
-                    rect.setAttribute('fill', statusColor);
-                    rect.setAttribute('stroke', '#ffffff');
-                    rect.setAttribute('stroke-width', '0.5');
+                    
+                    // Apply stock-based styling
+                    if (hasStock) {
+                        // Sufficient stock: normal filled bar
+                        rect.setAttribute('fill', statusColor);
+                        rect.setAttribute('opacity', '1');
+                        rect.setAttribute('stroke', 'white');
+                        rect.setAttribute('stroke-width', '1');
+                    } else {
+                        // Insufficient stock: transparent with dashed outline
+                        rect.setAttribute('fill', 'none');
+                        rect.setAttribute('stroke', statusColor);
+                        rect.setAttribute('stroke-width', '2');
+                        rect.setAttribute('opacity', '0.7');
+                        rect.setAttribute('stroke-dasharray', '4,4');
+                    }
+                    
                     rect.setAttribute('class', 'bar-segment');
                     
+                    // Enhanced tooltip with stock information
                     const statusText = order.status ? ` (Status: "${order.status}")` : ' (No status)';
-                    const tooltipText = `${this.formatDateShort(d.date)} - ${order.orderNumber}\nQuantity: ${order.quantity}${statusText}`;
+                    const stockText = hasStock ? '' : ' [INSUFFICIENT STOCK]';
+                    const priorityText = hasStock ? '' : ' - Material shortage detected';
+                    const tooltipText = `${this.formatDateShort(d.date)} - ${order.orderNumber}\nQuantity: ${order.quantity}${statusText}${stockText}${priorityText}`;
                     rect.setAttribute('title', tooltipText);
                     
                     svg.appendChild(rect);
                     
+                    // Add separator lines between segments (but make them more visible for insufficient stock)
                     if (orderIndex > 0) {
                         const lineY = barBottom - cumulativeHeight;
-                        const dottedLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        dottedLine.setAttribute('x1', x);
-                        dottedLine.setAttribute('y1', lineY);
-                        dottedLine.setAttribute('x2', x + barWidth);
-                        dottedLine.setAttribute('y2', lineY);
-                        dottedLine.setAttribute('stroke', 'white');
-                        dottedLine.setAttribute('stroke-width', '2');
-                        dottedLine.setAttribute('stroke-dasharray', '4,2');
-                        dottedLine.setAttribute('opacity', '0.9');
-                        svg.appendChild(dottedLine);
+                        const separatorLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        separatorLine.setAttribute('x1', x);
+                        separatorLine.setAttribute('y1', lineY);
+                        separatorLine.setAttribute('x2', x + barWidth);
+                        separatorLine.setAttribute('y2', lineY);
+                        separatorLine.setAttribute('stroke', hasStock ? 'white' : '#dc2626');
+                        separatorLine.setAttribute('stroke-width', hasStock ? '2' : '3');
+                        separatorLine.setAttribute('stroke-dasharray', hasStock ? '4,2' : '6,3');
+                        separatorLine.setAttribute('opacity', '0.9');
+                        svg.appendChild(separatorLine);
                     }
                     
                     cumulativeHeight += segmentHeight;
@@ -631,56 +972,91 @@ class EDIDashboard {
                 
                 // Add order count label if multiple orders
                 if (d.orders.length > 1) {
+                    const hasAnyStock = d.orders.some(order => {
+                        const orderItem = { type: 'order', orderNumber: order.orderNumber, date: d.date };
+                        return this.isItemStockSufficient(drawingNumber, orderItem);
+                    });
+                    
                     const countText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     countText.setAttribute('class', 'chart-text');
                     countText.setAttribute('x', x + barWidth / 2);
-                    countText.setAttribute('y', barBottom - totalBarHeight - 20);
+                    countText.setAttribute('y', barBottom - totalBarHeight - 25);
                     countText.setAttribute('text-anchor', 'middle');
                     countText.setAttribute('font-size', '10');
-                    countText.setAttribute('fill', '#6b7280');
-                    countText.textContent = `(${d.orders.length} orders)`;
+                    countText.setAttribute('font-weight', 'bold');
+                    countText.setAttribute('fill', hasAnyStock ? '#6b7280' : '#dc2626');
+                    countText.textContent = `${d.orders.length} orders${hasAnyStock ? '' : ' [!]'}`;
                     svg.appendChild(countText);
                 }
             } else {
-                // Draw forecast bar
+                // Handle forecast bars
+                const forecastItem = {
+                    type: 'forecast',
+                    monthDate: d.monthDate,
+                    date: d.date
+                };
+                const hasStock = this.isItemStockSufficient(drawingNumber, forecastItem);
+                
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('x', x);
                 rect.setAttribute('y', barBottom - totalBarHeight);
                 rect.setAttribute('width', barWidth);
                 rect.setAttribute('height', totalBarHeight);
-                rect.setAttribute('fill', '#d1d5db');
-                rect.setAttribute('stroke', '#9ca3af');
-                rect.setAttribute('stroke-width', '1');
-                rect.setAttribute('stroke-dasharray', '3,3');
+                
+                // Apply stock-based styling for forecasts
+                if (hasStock) {
+                    // Sufficient stock: normal forecast styling
+                    rect.setAttribute('fill', '#e5e7eb');
+                    rect.setAttribute('stroke', '#9ca3af');
+                    rect.setAttribute('stroke-width', '1');
+                    rect.setAttribute('stroke-dasharray', '3,3');
+                    rect.setAttribute('opacity', '1');
+                } else {
+                    // Insufficient stock: transparent with strong warning outline
+                    rect.setAttribute('fill', 'none');
+                    rect.setAttribute('stroke', '#dc2626');
+                    rect.setAttribute('stroke-width', '3');
+                    rect.setAttribute('stroke-dasharray', '6,6');
+                    rect.setAttribute('opacity', '0.8');
+                }
+                
                 rect.setAttribute('class', 'bar-segment');
                 
-                const tooltipText = `Forecast: ${d.displayDate}\nQuantity: ${d.quantity}`;
+                const stockText = hasStock ? '' : ' [INSUFFICIENT STOCK - Material shortage expected]';
+                const tooltipText = `Forecast: ${d.displayDate}\nQuantity: ${d.quantity}${stockText}`;
                 rect.setAttribute('title', tooltipText);
                 svg.appendChild(rect);
                 
-                // Add "F" label for forecast
+                // Add forecast label with stock warning
                 const forecastLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 forecastLabel.setAttribute('class', 'chart-text');
                 forecastLabel.setAttribute('x', x + barWidth / 2);
-                forecastLabel.setAttribute('y', barBottom - totalBarHeight - 20);
+                forecastLabel.setAttribute('y', barBottom - totalBarHeight - 25);
                 forecastLabel.setAttribute('text-anchor', 'middle');
-                forecastLabel.setAttribute('font-size', '10');
-                forecastLabel.setAttribute('fill', '#6b7280');
+                forecastLabel.setAttribute('font-size', '11');
+                forecastLabel.setAttribute('fill', hasStock ? '#6b7280' : '#dc2626');
                 forecastLabel.setAttribute('font-weight', 'bold');
-                forecastLabel.textContent = 'F';
+                forecastLabel.textContent = hasStock ? 'Forecast' : 'F - No Stock!';
                 svg.appendChild(forecastLabel);
             }
             
-            // Add quantity label on top of bar
+            // Add quantity label on top of bar with stock warning
+            const hasAnyStock = d.type === 'order' ? 
+                d.orders.some(order => {
+                    const orderItem = { type: 'order', orderNumber: order.orderNumber, date: d.date };
+                    return this.isItemStockSufficient(drawingNumber, orderItem);
+                }) : 
+                this.isItemStockSufficient(drawingNumber, { type: 'forecast', monthDate: d.monthDate });
+            
             const quantityText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             quantityText.setAttribute('class', 'chart-text');
             quantityText.setAttribute('x', x + barWidth / 2);
-            quantityText.setAttribute('y', barBottom - totalBarHeight - 5);
+            quantityText.setAttribute('y', barBottom - totalBarHeight - 8);
             quantityText.setAttribute('text-anchor', 'middle');
             quantityText.setAttribute('font-weight', 'bold');
-            quantityText.setAttribute('font-size', '12');
-            quantityText.setAttribute('fill', d.type === 'forecast' ? '#6b7280' : '#1f2937');
-            quantityText.textContent = d.quantity;
+            quantityText.setAttribute('font-size', hasAnyStock ? '12' : '11');
+            quantityText.setAttribute('fill', hasAnyStock ? '#1f2937' : '#dc2626');
+            quantityText.textContent = hasAnyStock ? d.quantity : `${d.quantity}⚠️`;
             svg.appendChild(quantityText);
             
             // Add date label below X-axis
@@ -691,19 +1067,21 @@ class EDIDashboard {
             dateText.setAttribute('text-anchor', 'middle');
             dateText.setAttribute('font-size', '11');
             dateText.setAttribute('font-weight', '500');
-            dateText.setAttribute('fill', d.type === 'forecast' ? '#6b7280' : '#000000');
+            dateText.setAttribute('fill', hasAnyStock ? '#000000' : '#dc2626');
             dateText.textContent = d.displayDate;
             svg.appendChild(dateText);
             
-            // Add type label on second line
+            // Add type/stock status label on second line
             const typeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             typeText.setAttribute('class', 'chart-label');
             typeText.setAttribute('x', x + barWidth / 2);
             typeText.setAttribute('y', height - margin.bottom + 40);
             typeText.setAttribute('text-anchor', 'middle');
             typeText.setAttribute('font-size', '9');
-            typeText.setAttribute('fill', '#9ca3af');
-            typeText.textContent = d.type === 'forecast' ? 'Forecast' : d.date.split('/')[0];
+            typeText.setAttribute('fill', hasAnyStock ? '#9ca3af' : '#dc2626');
+            typeText.textContent = hasAnyStock ? 
+                (d.type === 'forecast' ? 'Forecast' : d.date.split('/')[0]) : 
+                'No Stock';
             svg.appendChild(typeText);
         });
         
@@ -734,28 +1112,37 @@ class EDIDashboard {
             }
         }
         
-        // Add enhanced status legend
+        // Enhanced legend with stock integration info
         const legendY = margin.top;
         const legendItems = [
-            { color: '#4f46e5', label: 'No Status' },
-            { color: '#f59e0b', label: 'Has Comment' },
-            { color: '#059669', label: 'OK Status' },
-            { color: '#d1d5db', label: 'Forecast', dashed: true }
+            { color: '#059669', label: 'OK Status', priority: 'Bottom' },
+            { color: '#f59e0b', label: 'With Comments', priority: 'Middle' },
+            { color: '#4f46e5', label: 'No Status', priority: 'Top' },
+            { color: '#e5e7eb', label: 'Forecast', dashed: true },
+            { color: '#dc2626', label: 'No Stock', outline: true, warning: true }
         ];
         
         legendItems.forEach((item, index) => {
-            const legendX = width - margin.right - 160 + (index * 40);
+            const legendX = width - margin.right - 300 + (index * 60);
             
             const legendRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             legendRect.setAttribute('x', legendX);
             legendRect.setAttribute('y', legendY);
             legendRect.setAttribute('width', '12');
             legendRect.setAttribute('height', '12');
-            legendRect.setAttribute('fill', item.color);
-            legendRect.setAttribute('stroke', item.dashed ? '#9ca3af' : '#ffffff');
-            legendRect.setAttribute('stroke-width', '1');
-            if (item.dashed) {
-                legendRect.setAttribute('stroke-dasharray', '2,2');
+            
+            if (item.outline) {
+                legendRect.setAttribute('fill', 'none');
+                legendRect.setAttribute('stroke', item.color);
+                legendRect.setAttribute('stroke-width', item.warning ? '3' : '2');
+                legendRect.setAttribute('stroke-dasharray', item.warning ? '3,3' : '2,2');
+            } else {
+                legendRect.setAttribute('fill', item.color);
+                legendRect.setAttribute('stroke', item.dashed ? '#9ca3af' : '#ffffff');
+                legendRect.setAttribute('stroke-width', '1');
+                if (item.dashed) {
+                    legendRect.setAttribute('stroke-dasharray', '2,2');
+                }
             }
             svg.appendChild(legendRect);
             
@@ -763,26 +1150,27 @@ class EDIDashboard {
             legendText.setAttribute('x', legendX + 16);
             legendText.setAttribute('y', legendY + 9);
             legendText.setAttribute('font-size', '7');
-            legendText.setAttribute('fill', '#6b7280');
+            legendText.setAttribute('font-weight', item.warning ? 'bold' : 'normal');
+            legendText.setAttribute('fill', item.warning ? '#dc2626' : '#6b7280');
             legendText.textContent = item.label;
             svg.appendChild(legendText);
         });
         
-        // Add chart title
+        // Add comprehensive chart title
         const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         titleText.setAttribute('x', width / 2);
         titleText.setAttribute('y', height - 5);
         titleText.setAttribute('text-anchor', 'middle');
         titleText.setAttribute('font-size', '10');
         titleText.setAttribute('fill', '#6b7280');
-        titleText.textContent = 'Chronological delivery dates with forecast integration';
+        titleText.textContent = 'Delivery Schedule with Material Stock Analysis & Priority Stacking (OK→Comments→No Status)';
         svg.appendChild(titleText);
         
         container.innerHTML = '';
         container.appendChild(svg);
     }
 
-    // 🔧 NEW - Merge forecast and order data chronologically
+    // Merge forecast and order data chronologically
     mergeForecastAndOrderData(orderData, forecastBars) {
         const combined = [];
         
@@ -805,6 +1193,7 @@ class EDIDashboard {
                 date: forecast.fullDate,
                 displayDate: forecast.displayDate,
                 quantity: forecast.quantity,
+                monthDate: forecast.monthDate, // Add monthDate for stock calculations
                 sortDate: this.parseDate(forecast.fullDate)
             });
         });
@@ -820,7 +1209,7 @@ class EDIDashboard {
         return combined;
     }
 
-    // ENHANCED - Get forecast bars for chart with better date matching and type conversion
+    // Get forecast bars for chart with better date matching and type conversion
     getForecastBarsForChart(drawingNumber, existingData) {
         console.log(`📊 Getting forecast bars for ${drawingNumber}`);
         console.log(`📊 Available forecast data keys:`, Object.keys(this.forecastData));
@@ -869,6 +1258,7 @@ class EDIDashboard {
                         quantity: forecastValue,
                         displayDate: displayDate,
                         fullDate: fullDate,
+                        monthDate: monthKey, // Keep monthDate for stock calculations
                         month: month,
                         year: year
                     };
@@ -976,6 +1366,116 @@ class EDIDashboard {
             const exists = this.forecastData.hasOwnProperty(testKey);
             console.log(`🔍 Format ${format}: ${testKey} ${exists ? 'EXISTS' : 'MISSING'}`);
         });
+    }
+
+    // Cross-window communication
+    notifyOtherWindows(messageType) {
+        try {
+            // Use localStorage to communicate with other tabs/windows
+            const message = {
+                type: messageType,
+                timestamp: Date.now(),
+                source: 'dashboard'
+            };
+            localStorage.setItem('crossWindowMessage', JSON.stringify(message));
+            
+            // Clean up immediately
+            setTimeout(() => {
+                localStorage.removeItem('crossWindowMessage');
+            }, 1000);
+            
+        } catch (error) {
+            console.warn('Could not send cross-window message:', error);
+        }
+    }
+
+    // Listen for cross-window messages
+    setupCrossWindowCommunication() {
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'crossWindowMessage' && event.newValue) {
+                try {
+                    const message = JSON.parse(event.newValue);
+                    console.log('📡 Received cross-window message:', message);
+                    
+                    if (message.source !== 'dashboard') {
+                        // Reload data if updated from another window
+                        if (message.type === 'STOCK_UPDATED' || message.type === 'FORECAST_UPDATED') {
+                            console.log('🔄 Reloading data due to external update');
+                            this.loadData();
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Could not parse cross-window message:', error);
+                }
+            }
+        });
+    }
+
+    // Debug method for stock integration
+    debugStockIntegration() {
+        console.log('🔍 STOCK INTEGRATION DEBUG:');
+        console.log('📦 Material Stocks:', this.materialStocks);
+        console.log('📊 Stock Calculations:', this.stockCalculations);
+        
+        // Test each product group
+        Object.keys(this.productGroups).forEach(groupKey => {
+            const group = this.productGroups[groupKey];
+            console.log(`\n🔍 Group: ${group.name} (${groupKey})`);
+            
+            const stockData = this.materialStocks[groupKey];
+            const calculations = this.stockCalculations[groupKey];
+            
+            console.log(`   Stock Data:`, stockData);
+            console.log(`   Calculations:`, calculations);
+            
+            if (calculations && calculations.itemAvailability) {
+                console.log(`   Item Availability:`);
+                Object.keys(calculations.itemAvailability).forEach(itemKey => {
+                    const item = calculations.itemAvailability[itemKey];
+                    console.log(`     ${itemKey}: ${item.sufficient ? 'SUFFICIENT' : 'INSUFFICIENT'} (${item.quantity} units)`);
+                });
+            }
+        });
+    }
+
+    debugForecastData() {
+        console.log('🔍 DASHBOARD FORECAST DEBUG INFORMATION:');
+        console.log('📊 Current forecast data object:', this.forecastData);
+        console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
+        
+        // Show all forecast keys with values and types
+        Object.keys(this.forecastData).forEach(key => {
+            const value = this.forecastData[key];
+            console.log(`🔍 Forecast entry: ${key} = ${value} (type: ${typeof value}, valid: ${!isNaN(parseFloat(value)) && parseFloat(value) > 0})`);
+        });
+        
+        // Generate expected keys for comparison
+        const now = new Date();
+        
+        console.log('🔍 Expected forecast keys for next 6 months:');
+        for (let i = 0; i < 6; i++) {
+            const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
+            
+            this.DRAWING_NUMBER_ORDER.forEach(product => {
+                const expectedKey = `${product}-${monthKey}`;
+                const hasData = this.forecastData.hasOwnProperty(expectedKey);
+                const value = this.forecastData[expectedKey] || 0;
+                const isValid = !isNaN(parseFloat(value)) && parseFloat(value) > 0;
+                console.log(`🔍 ${expectedKey}: ${hasData ? (isValid ? 'VALID' : 'INVALID') : 'MISSING'} (value: ${value})`);
+            });
+        }
+        
+        // Test chart generation for first product
+        console.log('🔍 Testing forecast bar generation for first product...');
+        if (this.DRAWING_NUMBER_ORDER.length > 0) {
+            const testProduct = this.DRAWING_NUMBER_ORDER[0];
+            const testData = this.ediData.filter(order => order.drawing_number === testProduct);
+            const testFutureOrders = this.getFutureOrders(testData);
+            const testChartData = this.groupOrdersByDate(testFutureOrders);
+            const testForecastBars = this.getForecastBarsForChart(testProduct, testChartData);
+            console.log(`🔍 Generated ${testForecastBars.length} forecast bars for ${testProduct}`);
+        }
     }
 
     // ============ UI METHODS ============
@@ -1126,46 +1626,6 @@ class EDIDashboard {
         container.innerHTML = tableHTML;
     }
 
-    debugForecastData() {
-        console.log('🔍 DASHBOARD FORECAST DEBUG INFORMATION:');
-        console.log('📊 Current forecast data object:', this.forecastData);
-        console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
-        
-        // Show all forecast keys with values and types
-        Object.keys(this.forecastData).forEach(key => {
-            const value = this.forecastData[key];
-            console.log(`🔍 Forecast entry: ${key} = ${value} (type: ${typeof value}, valid: ${!isNaN(parseFloat(value)) && parseFloat(value) > 0})`);
-        });
-        
-        // Generate expected keys for comparison
-        const now = new Date();
-        
-        console.log('🔍 Expected forecast keys for next 6 months:');
-        for (let i = 0; i < 6; i++) {
-            const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-            const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
-            
-            this.DRAWING_NUMBER_ORDER.forEach(product => {
-                const expectedKey = `${product}-${monthKey}`;
-                const hasData = this.forecastData.hasOwnProperty(expectedKey);
-                const value = this.forecastData[expectedKey] || 0;
-                const isValid = !isNaN(parseFloat(value)) && parseFloat(value) > 0;
-                console.log(`🔍 ${expectedKey}: ${hasData ? (isValid ? 'VALID' : 'INVALID') : 'MISSING'} (value: ${value})`);
-            });
-        }
-        
-        // Test chart generation for first product
-        console.log('🔍 Testing forecast bar generation for first product...');
-        if (this.DRAWING_NUMBER_ORDER.length > 0) {
-            const testProduct = this.DRAWING_NUMBER_ORDER[0];
-            const testData = this.ediData.filter(order => order.drawing_number === testProduct);
-            const testFutureOrders = this.getFutureOrders(testData);
-            const testChartData = this.groupOrdersByDate(testFutureOrders);
-            const testForecastBars = this.getForecastBarsForChart(testProduct, testChartData);
-            console.log(`🔍 Generated ${testForecastBars.length} forecast bars for ${testProduct}`);
-        }
-    }
-
     // ============ INITIALIZATION ============
     initializeFileHandlers() {
         const fileInput = document.getElementById('fileInput');
@@ -1239,24 +1699,27 @@ class EDIDashboard {
 
     async initialize() {
         try {
-            console.log('🚀 Initializing EDI Dashboard...');
+            console.log('🚀 Initializing Enhanced EDI Dashboard...');
             
             // Load user authentication info
             await this.loadUserInfo();
             
-            // Load EDI data
+            // Load EDI data with stock integration
             await this.loadData();
             
             // Initialize file and button handlers
             this.initializeFileHandlers();
             this.initializeButtonHandlers();
             
+            // Setup cross-window communication
+            this.setupCrossWindowCommunication();
+            
             // Set up auto-refresh every 5 minutes
             setInterval(() => {
                 this.loadData();
             }, 300000);
             
-            console.log('✅ Dashboard initialized successfully');
+            console.log('✅ Enhanced Dashboard initialized successfully');
         } catch (error) {
             console.error('❌ Failed to initialize dashboard:', error);
             this.showMessage('Failed to initialize dashboard', 'error');
@@ -1338,6 +1801,11 @@ window.testSessionDebug = async function() {
         console.log('❌ Session debug failed:', error);
         return null;
     }
+};
+
+window.testStockIntegration = function() {
+    console.log('🧪 Testing stock integration...');
+    ediDashboard.debugStockIntegration();
 };
 
 // Make dashboard available globally

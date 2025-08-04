@@ -31,8 +31,10 @@ if (isProduction) {
 // In-memory storage for local development
 let inMemoryData = [];
 let inMemoryForecasts = [];
+let inMemoryStocks = [];
 let nextId = 1;
 let nextForecastId = 1;
+let nextStockId = 1;
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
@@ -41,7 +43,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static file serving - FIXED PATH
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 🔧 FIXED SESSION CONFIGURATION - More lenient settings
+// Enhanced session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'edi-secret-key-2024-super-secure',
   resave: true,  // Changed to true to prevent session loss
@@ -84,7 +86,23 @@ const DRAWING_NUMBER_ORDER = [
   'PP4166-7106P003' // Product name: ﾐﾄﾞﾙﾌﾚｰﾑ
 ];
 
-// NEW UTILITY FUNCTION - Date format normalization
+// Product group mappings for material stock calculations
+const PRODUCT_GROUPS = {
+  'upper-frame': {
+    name: 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
+    products: ['PP4166-4681P003', 'PP4166-4681P004']
+  },
+  'top-plate': {
+    name: 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
+    products: ['PP4166-4726P003', 'PP4166-4726P004']
+  },
+  'middle-frame': {
+    name: 'ﾐﾄﾞﾙﾌﾚｰﾑ',
+    products: ['PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003']
+  }
+};
+
+// UTILITY FUNCTION - Date format normalization
 function normalizeMonthDate(monthDate) {
   if (!monthDate) return monthDate;
   
@@ -105,7 +123,7 @@ function normalizeMonthDate(monthDate) {
   return monthDate;
 }
 
-// 🔧 FIXED AUTHENTICATION MIDDLEWARE - More lenient
+// Enhanced authentication middleware
 function enhancedRequireAuth(req, res, next) {
   console.log('🔐 Auth check - Session ID:', req.sessionID);
   console.log('🔐 Auth check - Session exists:', !!req.session);
@@ -117,7 +135,7 @@ function enhancedRequireAuth(req, res, next) {
   } else {
     console.log('❌ Authentication failed - no valid session');
     
-    // 🔧 FIXED: Send HTML redirect instead of JSON for browser requests
+    // Send HTML redirect instead of JSON for browser requests
     if (req.headers.accept && req.headers.accept.includes('text/html')) {
       return res.redirect('/');
     } else {
@@ -126,7 +144,7 @@ function enhancedRequireAuth(req, res, next) {
   }
 }
 
-// New middleware for admin-only operations
+// Admin-only operations middleware
 function requireAdminAuth(req, res, next) {
   console.log('🔐 Admin auth check - User:', req.session?.user);
   
@@ -176,6 +194,19 @@ async function initializeDatabase() {
       `;
       await sql.query(createForecastTableQuery);
       
+      // Create material stocks table
+      const createMaterialStocksTableQuery = `
+        CREATE TABLE IF NOT EXISTS material_stocks (
+          id SERIAL PRIMARY KEY,
+          group_key VARCHAR(50) UNIQUE NOT NULL,
+          group_name VARCHAR(100) NOT NULL,
+          quantity INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      await sql.query(createMaterialStocksTableQuery);
+      
       const createIndexQuery = `
         CREATE INDEX IF NOT EXISTS idx_edi_orders_drawing_number 
         ON edi_orders(drawing_number)
@@ -187,6 +218,12 @@ async function initializeDatabase() {
         ON forecasts(drawing_number, month_date)
       `;
       await sql.query(createForecastIndexQuery);
+      
+      const createMaterialStocksIndexQuery = `
+        CREATE INDEX IF NOT EXISTS idx_material_stocks_group_key 
+        ON material_stocks(group_key)
+      `;
+      await sql.query(createMaterialStocksIndexQuery);
       
       console.log('✅ Vercel Postgres tables initialized');
     } catch (error) {
@@ -212,7 +249,7 @@ function parseDate(dateString) {
   }
 }
 
-// EDI Orders functions
+// ============ EDI ORDERS FUNCTIONS ============
 async function getAllOrders() {
   console.log('🔍 getAllOrders called');
   
@@ -344,7 +381,7 @@ async function addOrder(orderData) {
   }
 }
 
-// ENHANCED FORECAST FUNCTIONS
+// ============ ENHANCED FORECAST FUNCTIONS ============
 async function getAllForecasts() {
   console.log('🔍 getAllForecasts called');
   
@@ -423,13 +460,14 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
         ON CONFLICT (drawing_number, month_date)
         DO UPDATE SET quantity = $3, updated_at = CURRENT_TIMESTAMP
+        RETURNING *
       `;
-      await sql.query(upsertQuery, [drawingNumber, normalizedMonthDate, quantity]);
-      console.log('✅ Forecast saved to Postgres:', { drawingNumber, monthDate: normalizedMonthDate, quantity });
-      return true;
+      const result = await sql.query(upsertQuery, [drawingNumber, normalizedMonthDate, quantity]);
+      console.log('✅ Forecast saved to Postgres:', result.rows[0]);
+      return { success: true, data: result.rows[0] };
     } catch (error) {
       console.error('❌ Error saving forecast to Postgres:', error);
-      return false;
+      return { success: false, error: error.message };
     }
   } else {
     // Handle in-memory storage
@@ -454,11 +492,11 @@ async function saveForecast(drawingNumber, monthDate, quantity) {
       console.log('✅ Added new forecast to memory:', newForecast);
     }
     
-    return true;
+    return { success: true };
   }
 }
 
-// 🔧 NEW - Clear all forecast data function
+// Clear all forecast data function
 async function clearAllForecasts() {
   console.log('🗑️ clearAllForecasts called');
   
@@ -467,16 +505,136 @@ async function clearAllForecasts() {
       const deleteQuery = 'DELETE FROM forecasts';
       await sql.query(deleteQuery);
       console.log('✅ All forecasts cleared from Postgres');
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('❌ Error clearing forecasts from Postgres:', error);
-      return false;
+      return { success: false, error: error.message };
     }
   } else {
     inMemoryForecasts = [];
     console.log('✅ All forecasts cleared from memory');
-    return true;
+    return { success: true };
   }
+}
+
+// ============ ENHANCED MATERIAL STOCK FUNCTIONS ============
+async function getAllMaterialStocks() {
+  console.log('🔍 getAllMaterialStocks called');
+  
+  if (isProduction && sql) {
+    try {
+      const selectQuery = `
+        SELECT 
+          id,
+          group_key,
+          group_name,
+          quantity,
+          created_at,
+          updated_at
+        FROM material_stocks 
+        ORDER BY group_key ASC
+      `;
+      const result = await sql.query(selectQuery);
+      console.log('✅ Material stocks query result:', result.rows.length, 'records');
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Error fetching material stocks from Postgres:', error);
+      return [];
+    }
+  } else {
+    console.log('📊 In-memory material stock data:', inMemoryStocks.length, 'records');
+    return inMemoryStocks;
+  }
+}
+
+async function saveMaterialStock(groupKey, groupName, quantity) {
+  console.log('💾 saveMaterialStock called:', { groupKey, groupName, quantity });
+  
+  if (isProduction && sql) {
+    try {
+      const upsertQuery = `
+        INSERT INTO material_stocks (group_key, group_name, quantity, updated_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (group_key)
+        DO UPDATE SET 
+          group_name = $2, 
+          quantity = $3, 
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+      `;
+      const result = await sql.query(upsertQuery, [groupKey, groupName, quantity]);
+      console.log('✅ Material stock saved to Postgres:', result.rows[0]);
+      return { success: true, data: result.rows[0] };
+    } catch (error) {
+      console.error('❌ Error saving material stock to Postgres:', error);
+      return { success: false, error: error.message };
+    }
+  } else {
+    // Handle in-memory storage
+    const existingIndex = inMemoryStocks.findIndex(s => s.group_key === groupKey);
+    
+    const stockData = {
+      id: existingIndex >= 0 ? inMemoryStocks[existingIndex].id : nextStockId++,
+      group_key: groupKey,
+      group_name: groupName,
+      quantity: quantity,
+      created_at: existingIndex >= 0 ? inMemoryStocks[existingIndex].created_at : new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    if (existingIndex >= 0) {
+      inMemoryStocks[existingIndex] = stockData;
+      console.log('✅ Updated material stock in memory:', stockData);
+    } else {
+      inMemoryStocks.push(stockData);
+      console.log('✅ Added new material stock to memory:', stockData);
+    }
+    
+    return { success: true, data: stockData };
+  }
+}
+
+// Helper function to parse month headers
+function parseMonthHeader(headerValue) {
+  const header = headerValue.toLowerCase().trim();
+  
+  // Japanese months
+  const japaneseMonths = {
+    '1月': '01/01', '2月': '02/01', '3月': '03/01', '4月': '04/01',
+    '5月': '05/01', '6月': '06/01', '7月': '07/01', '8月': '08/01',
+    '9月': '09/01', '10月': '10/01', '11月': '11/01', '12月': '12/01'
+  };
+  
+  for (const [japanese, monthKey] of Object.entries(japaneseMonths)) {
+    if (header.includes(japanese.toLowerCase())) {
+      return { monthKey, displayName: japanese };
+    }
+  }
+  
+  // English months
+  const englishMonths = {
+    'jan': '01/01', 'feb': '02/01', 'mar': '03/01', 'apr': '04/01',
+    'may': '05/01', 'jun': '06/01', 'jul': '07/01', 'aug': '08/01',
+    'sep': '09/01', 'oct': '10/01', 'nov': '11/01', 'dec': '12/01'
+  };
+  
+  for (const [english, monthKey] of Object.entries(englishMonths)) {
+    if (header.includes(english)) {
+      return { monthKey, displayName: english.toUpperCase() };
+    }
+  }
+  
+  // Numeric formats: 2025/8, 2025-8, 8, etc.
+  const numericMatch = header.match(/(?:20\d{2}[\/\-])?(\d{1,2})/);
+  if (numericMatch) {
+    const month = parseInt(numericMatch[1]);
+    if (month >= 1 && month <= 12) {
+      const monthKey = `${String(month).padStart(2, '0')}/01`;
+      return { monthKey, displayName: `${month}月` };
+    }
+  }
+  
+  return null;
 }
 
 // Utility functions
@@ -504,7 +662,7 @@ function formatDate(dateString) {
   }
 }
 
-// Routes
+// ============ ROUTES ============
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -516,7 +674,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Login page - FIXED: Use path.join for file serving
+// Login page
 app.get('/', (req, res) => {
   try {
     console.log('🏠 Root route - checking session:', !!req.session?.user);
@@ -533,7 +691,7 @@ app.get('/', (req, res) => {
   }
 });
 
-// Dashboard page - FIXED: Use path.join for file serving
+// Dashboard page
 app.get('/dashboard', enhancedRequireAuth, (req, res) => {
   try {
     console.log('📊 Dashboard route accessed by:', req.session.user.username);
@@ -555,7 +713,18 @@ app.get('/forecast', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// 🔧 FIXED LOGIN ENDPOINT - Better session handling
+// Material Stock page
+app.get('/stock', enhancedRequireAuth, (req, res) => {
+  try {
+    console.log('📦 Material Stock route accessed by:', req.session.user.username);
+    res.sendFile(path.join(__dirname, 'public', 'stock.html'));
+  } catch (error) {
+    console.error('❌ Error in material stock route:', error);
+    res.status(500).send('Server error');
+  }
+});
+
+// Enhanced login endpoint
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body;
@@ -602,7 +771,7 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-// New user info endpoint
+// User info endpoint
 app.get('/api/user-info', enhancedRequireAuth, (req, res) => {
   try {
     const user = req.session.user;
@@ -622,7 +791,7 @@ app.get('/api/user-info', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// ENHANCED LOGOUT ENDPOINT
+// Enhanced logout endpoint
 app.post('/api/logout', (req, res) => {
   try {
     const username = req.session?.user?.username;
@@ -645,6 +814,8 @@ app.post('/api/logout', (req, res) => {
   }
 });
 
+// ============ EDI DATA API ENDPOINTS ============
+
 // Get all EDI data
 app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   console.log('🌐 GET /api/edi-data called');
@@ -656,270 +827,6 @@ app.get('/api/edi-data', enhancedRequireAuth, async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching EDI data:', error);
     res.status(500).json({ error: 'Failed to fetch data' });
-  }
-});
-
-// 🔧 FIXED - CSV export endpoint (no dependencies required)
-app.get('/api/export/csv', enhancedRequireAuth, async (req, res) => {
-  console.log('📊 CSV export requested');
-  
-  try {
-    // Get all orders
-    const orders = await getAllOrders();
-    console.log(`📊 Exporting ${orders.length} orders to CSV`);
-    
-    // Create CSV headers
-    const headers = [
-      'Order Number',
-      'Drawing Number', 
-      'Product Name',
-      'Quantity',
-      'Delivery Date',
-      'Status',
-      'Created At',
-      'Updated At'
-    ];
-    
-    // Create CSV content
-    let csvContent = headers.join(',') + '\n';
-    
-    // Add data rows
-    orders.forEach(order => {
-      const row = [
-        `"${order.order_number || ''}"`,
-        `"${order.drawing_number || ''}"`,
-        `"${order.product_name || ''}"`,
-        order.quantity || 0,
-        `"${order.delivery_date || ''}"`,
-        `"${(order.status || '').replace(/"/g, '""')}"`, // Escape quotes in status
-        `"${order.created_at ? new Date(order.created_at).toLocaleString() : ''}"`,
-        `"${order.updated_at ? new Date(order.updated_at).toLocaleString() : ''}"`
-      ];
-      csvContent += row.join(',') + '\n';
-    });
-    
-    // Set response headers for CSV download
-    const fileName = `EDI_Orders_${new Date().toISOString().split('T')[0]}.csv`;
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    
-    // Add BOM for proper Excel UTF-8 handling
-    const BOM = '\uFEFF';
-    res.send(BOM + csvContent);
-    
-    console.log('✅ CSV export completed successfully');
-    
-  } catch (error) {
-    console.error('❌ CSV export error:', error);
-    res.status(500).json({ error: 'Failed to export CSV file', details: error.message });
-  }
-});
-
-// 🔧 ALTERNATIVE - JSON export for easy data access
-app.get('/api/export/json', enhancedRequireAuth, async (req, res) => {
-  console.log('📊 JSON export requested');
-  
-  try {
-    const orders = await getAllOrders();
-    
-    // Create formatted export data
-    const exportData = {
-      export_info: {
-        timestamp: new Date().toISOString(),
-        exported_by: req.session.user.username,
-        total_records: orders.length,
-        format: 'JSON'
-      },
-      orders: orders.map(order => ({
-        order_number: order.order_number || '',
-        drawing_number: order.drawing_number || '',
-        product_name: order.product_name || '',
-        quantity: order.quantity || 0,
-        delivery_date: order.delivery_date || '',
-        status: order.status || '',
-        created_at: order.created_at,
-        updated_at: order.updated_at
-      }))
-    };
-    
-    const fileName = `EDI_Orders_${new Date().toISOString().split('T')[0]}.json`;
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    
-    res.json(exportData);
-    
-    console.log('✅ JSON export completed successfully');
-    
-  } catch (error) {
-    console.error('❌ JSON export error:', error);
-    res.status(500).json({ error: 'Failed to export JSON file', details: error.message });
-  }
-});
-
-// ENHANCED DEBUG ENDPOINT
-app.get('/api/debug/forecasts', enhancedRequireAuth, async (req, res) => {
-  console.log('🔍 DEBUG: Checking forecast data');
-  
-  try {
-    if (isProduction && sql) {
-      const result = await sql.query('SELECT * FROM forecasts ORDER BY drawing_number, month_date');
-      console.log('🔍 DEBUG: Postgres forecasts count:', result.rows.length);
-      
-      // Detailed logging of each forecast entry
-      result.rows.forEach((row, index) => {
-        console.log(`🔍 DEBUG: Forecast ${index + 1}: ${row.drawing_number} | ${row.month_date} | ${row.quantity}`);
-      });
-      
-      res.json({ 
-        source: 'postgres', 
-        data: result.rows,
-        count: result.rows.length,
-        sample: result.rows.slice(0, 5) // Show first 5 for debugging
-      });
-    } else {
-      console.log('🔍 DEBUG: In-memory forecasts count:', inMemoryForecasts.length);
-      
-      inMemoryForecasts.forEach((row, index) => {
-        console.log(`🔍 DEBUG: Memory Forecast ${index + 1}: ${row.drawing_number} | ${row.month_date} | ${row.quantity}`);
-      });
-      
-      res.json({ 
-        source: 'memory', 
-        data: inMemoryForecasts,
-        count: inMemoryForecasts.length,
-        sample: inMemoryForecasts.slice(0, 5)
-      });
-    }
-  } catch (error) {
-    console.error('❌ Error in debug endpoint:', error);
-    res.status(500).json({ error: 'Debug failed', details: error.message });
-  }
-});
-
-// Get all forecast data
-app.get('/api/forecasts', enhancedRequireAuth, async (req, res) => {
-  console.log('🌐 GET /api/forecasts called');
-  
-  try {
-    const forecasts = await getAllForecasts();
-    console.log('📤 Sending forecast response with', forecasts.length, 'records');
-    console.log('📊 Sample forecasts:', forecasts.slice(0, 3));
-    res.json(forecasts);
-  } catch (error) {
-    console.error('❌ Error fetching forecast data:', error);
-    res.status(500).json({ error: 'Failed to fetch forecast data' });
-  }
-});
-
-// 🔧 NEW - Clear all forecast data endpoint
-app.delete('/api/forecasts/clear', requireAdminAuth, async (req, res) => {
-  console.log('🗑️ Clear all forecasts requested');
-  
-  try {
-    const success = await clearAllForecasts();
-    
-    if (success) {
-      console.log('✅ All forecasts cleared successfully');
-      res.json({ 
-        success: true, 
-        message: 'All forecast data cleared successfully' 
-      });
-    } else {
-      console.log('❌ Failed to clear forecasts');
-      res.status(500).json({ error: 'Failed to clear forecast data' });
-    }
-  } catch (error) {
-    console.error('❌ Error clearing forecasts:', error);
-    res.status(500).json({ error: 'Failed to clear forecast data', details: error.message });
-  }
-});
-
-// 🔧 FIXED - Save forecast data (admin only) - Fixed field names
-app.post('/api/forecasts', requireAdminAuth, async (req, res) => {
-  console.log('🌐 POST /api/forecasts called');
-  console.log('📊 Request body:', req.body);
-  
-  try {
-    // 🔧 FIXED: Use correct field names from frontend
-    const { drawing_number, month_date, quantity } = req.body;
-    
-    console.log('🔍 Extracted fields:', { drawing_number, month_date, quantity });
-    
-    if (!drawing_number || !month_date || quantity === undefined) {
-      console.log('❌ Missing required fields:', { drawing_number, month_date, quantity });
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    
-    const success = await saveForecast(drawing_number, month_date, parseInt(quantity) || 0);
-    
-    if (success) {
-      console.log('✅ Individual forecast save successful');
-      res.json({ success: true, message: 'Forecast saved successfully' });
-    } else {
-      console.log('❌ Individual forecast save failed');
-      res.status(500).json({ error: 'Failed to save forecast' });
-    }
-  } catch (error) {
-    console.error('❌ Error saving forecast:', error);
-    res.status(500).json({ error: 'Failed to save forecast' });
-  }
-});
-
-// 🔧 FIXED - Batch save forecasts (admin only) - Fixed field names
-app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
-  console.log('🌐 POST /api/forecasts/batch called');
-  
-  try {
-    const { forecasts } = req.body;
-    console.log('📊 Received forecasts for batch save:', forecasts);
-    
-    if (!Array.isArray(forecasts)) {
-      return res.status(400).json({ error: 'Forecasts must be an array' });
-    }
-    
-    let saved = 0;
-    let errors = 0;
-    
-    for (const forecast of forecasts) {
-      try {
-        console.log('💾 Processing forecast:', forecast);
-        
-        // 🔧 FIXED: Use correct field names from frontend
-        // Frontend sends: drawing_number, month_date, quantity
-        const success = await saveForecast(
-          forecast.drawing_number,  // ✅ Fixed from forecast.drawingNumber
-          forecast.month_date,      // ✅ Fixed from forecast.monthDate  
-          parseInt(forecast.quantity) || 0
-        );
-        
-        if (success) {
-          saved++;
-          console.log('✅ Saved forecast:', {
-            drawing_number: forecast.drawing_number,
-            month_date: forecast.month_date,
-            quantity: forecast.quantity
-          });
-        } else {
-          errors++;
-          console.log('❌ Failed to save forecast:', forecast);
-        }
-      } catch (error) {
-        errors++;
-        console.error('❌ Error saving individual forecast:', forecast, error);
-      }
-    }
-    
-    console.log(`📊 Batch save completed: ${saved} saved, ${errors} errors`);
-    
-    res.json({ 
-      success: true, 
-      message: `Batch save completed: ${saved} saved, ${errors} errors`,
-      saved,
-      errors
-    });
-  } catch (error) {
-    console.error('❌ Error in batch save:', error);
-    res.status(500).json({ error: 'Failed to batch save forecasts' });
   }
 });
 
@@ -1159,6 +1066,648 @@ app.post('/api/import-edi', requireAdminAuth, upload.single('ediFile'), async (r
   }
 });
 
+// ============ EXPORT ENDPOINTS ============
+
+// Enhanced CSV export endpoint
+app.get('/api/export/csv', enhancedRequireAuth, async (req, res) => {
+  console.log('📊 CSV export requested');
+  
+  try {
+    // Get all orders
+    const orders = await getAllOrders();
+    console.log(`📊 Exporting ${orders.length} orders to CSV`);
+    
+    // Create CSV headers
+    const headers = [
+      'Order Number',
+      'Drawing Number', 
+      'Product Name',
+      'Quantity',
+      'Delivery Date',
+      'Status',
+      'Created At',
+      'Updated At'
+    ];
+    
+    // Create CSV content
+    let csvContent = headers.join(',') + '\n';
+    
+    // Add data rows
+    orders.forEach(order => {
+      const row = [
+        `"${order.order_number || ''}"`,
+        `"${order.drawing_number || ''}"`,
+        `"${order.product_name || ''}"`,
+        order.quantity || 0,
+        `"${order.delivery_date || ''}"`,
+        `"${(order.status || '').replace(/"/g, '""')}"`, // Escape quotes in status
+        `"${order.created_at ? new Date(order.created_at).toLocaleString() : ''}"`,
+        `"${order.updated_at ? new Date(order.updated_at).toLocaleString() : ''}"`
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+    
+    // Set response headers for CSV download
+    const fileName = `EDI_Orders_${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    // Add BOM for proper Excel UTF-8 handling
+    const BOM = '\uFEFF';
+    res.send(BOM + csvContent);
+    
+    console.log('✅ CSV export completed successfully');
+    
+  } catch (error) {
+    console.error('❌ CSV export error:', error);
+    res.status(500).json({ error: 'Failed to export CSV file', details: error.message });
+  }
+});
+
+// JSON export for easy data access
+app.get('/api/export/json', enhancedRequireAuth, async (req, res) => {
+  console.log('📊 JSON export requested');
+  
+  try {
+    const orders = await getAllOrders();
+    
+    // Create formatted export data
+    const exportData = {
+      export_info: {
+        timestamp: new Date().toISOString(),
+        exported_by: req.session.user.username,
+        total_records: orders.length,
+        format: 'JSON'
+      },
+      orders: orders.map(order => ({
+        order_number: order.order_number || '',
+        drawing_number: order.drawing_number || '',
+        product_name: order.product_name || '',
+        quantity: order.quantity || 0,
+        delivery_date: order.delivery_date || '',
+        status: order.status || '',
+        created_at: order.created_at,
+        updated_at: order.updated_at
+      }))
+    };
+    
+    const fileName = `EDI_Orders_${new Date().toISOString().split('T')[0]}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    res.json(exportData);
+    
+    console.log('✅ JSON export completed successfully');
+    
+  } catch (error) {
+    console.error('❌ JSON export error:', error);
+    res.status(500).json({ error: 'Failed to export JSON file', details: error.message });
+  }
+});
+
+// ============ FORECAST API ENDPOINTS ============
+
+// Get all forecast data
+app.get('/api/forecasts', enhancedRequireAuth, async (req, res) => {
+  console.log('🌐 GET /api/forecasts called');
+  
+  try {
+    const forecasts = await getAllForecasts();
+    console.log('📤 Sending forecast response with', forecasts.length, 'records');
+    console.log('📊 Sample forecasts:', forecasts.slice(0, 3));
+    res.json(forecasts);
+  } catch (error) {
+    console.error('❌ Error fetching forecast data:', error);
+    res.status(500).json({ error: 'Failed to fetch forecast data' });
+  }
+});
+
+// Clear all forecast data endpoint
+app.delete('/api/forecasts/clear', requireAdminAuth, async (req, res) => {
+  console.log('🗑️ Clear all forecasts requested');
+  
+  try {
+    const result = await clearAllForecasts();
+    
+    if (result.success) {
+      console.log('✅ All forecasts cleared successfully');
+      res.json({ 
+        success: true, 
+        message: 'All forecast data cleared successfully' 
+      });
+    } else {
+      console.log('❌ Failed to clear forecasts');
+      res.status(500).json({ error: result.error || 'Failed to clear forecast data' });
+    }
+  } catch (error) {
+    console.error('❌ Error clearing forecasts:', error);
+    res.status(500).json({ error: 'Failed to clear forecast data', details: error.message });
+  }
+});
+
+// Save forecast data (admin only)
+app.post('/api/forecasts', requireAdminAuth, async (req, res) => {
+  console.log('🌐 POST /api/forecasts called');
+  console.log('📊 Request body:', req.body);
+  
+  try {
+    // Use correct field names from frontend
+    const { drawing_number, month_date, quantity } = req.body;
+    
+    console.log('🔍 Extracted fields:', { drawing_number, month_date, quantity });
+    
+    if (!drawing_number || !month_date || quantity === undefined) {
+      console.log('❌ Missing required fields:', { drawing_number, month_date, quantity });
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const result = await saveForecast(drawing_number, month_date, parseInt(quantity) || 0);
+    
+    if (result.success) {
+      console.log('✅ Individual forecast save successful');
+      res.json({ success: true, message: 'Forecast saved successfully' });
+    } else {
+      console.log('❌ Individual forecast save failed');
+      res.status(500).json({ error: result.error || 'Failed to save forecast' });
+    }
+  } catch (error) {
+    console.error('❌ Error saving forecast:', error);
+    res.status(500).json({ error: 'Failed to save forecast' });
+  }
+});
+
+// Batch save forecasts (admin only)
+app.post('/api/forecasts/batch', requireAdminAuth, async (req, res) => {
+  console.log('🌐 POST /api/forecasts/batch called');
+  
+  try {
+    const { forecasts } = req.body;
+    console.log('📊 Received forecasts for batch save:', forecasts);
+    
+    if (!Array.isArray(forecasts)) {
+      return res.status(400).json({ error: 'Forecasts must be an array' });
+    }
+    
+    let saved = 0;
+    let errors = 0;
+    
+    for (const forecast of forecasts) {
+      try {
+        console.log('💾 Processing forecast:', forecast);
+        
+        // Use correct field names from frontend
+        const result = await saveForecast(
+          forecast.drawing_number,  // Fixed from forecast.drawingNumber
+          forecast.month_date,      // Fixed from forecast.monthDate  
+          parseInt(forecast.quantity) || 0
+        );
+        
+        if (result.success) {
+          saved++;
+          console.log('✅ Saved forecast:', {
+            drawing_number: forecast.drawing_number,
+            month_date: forecast.month_date,
+            quantity: forecast.quantity
+          });
+        } else {
+          errors++;
+          console.log('❌ Failed to save forecast:', forecast);
+        }
+      } catch (error) {
+        errors++;
+        console.error('❌ Error saving individual forecast:', forecast, error);
+      }
+    }
+    
+    console.log(`📊 Batch save completed: ${saved} saved, ${errors} errors`);
+    
+    res.json({ 
+      success: true, 
+      message: `Batch save completed: ${saved} saved, ${errors} errors`,
+      saved,
+      errors
+    });
+  } catch (error) {
+    console.error('❌ Error in batch save:', error);
+    res.status(500).json({ error: 'Failed to batch save forecasts' });
+  }
+});
+
+// Enhanced Excel import for forecasts
+app.post('/api/import-forecast', requireAdminAuth, upload.single('forecastFile'), async (req, res) => {
+  console.log('📁 Import forecast Excel file called');
+  
+  try {
+    if (!req.file) {
+      console.log('❌ No file uploaded');
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    console.log('📄 File info:', {
+      filename: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+
+    // Only accept Excel files
+    if (!req.file.mimetype.includes('spreadsheet') && !req.file.originalname.match(/\.(xlsx|xls)$/)) {
+      return res.status(400).json({ error: 'Please upload an Excel file (.xlsx or .xls)' });
+    }
+
+    let XLSX;
+    try {
+      XLSX = require('xlsx');
+      console.log('✅ XLSX library loaded successfully');
+    } catch (xlsxError) {
+      console.error('❌ XLSX library not found:', xlsxError);
+      return res.status(500).json({ 
+        error: 'Excel processing not available. Please install xlsx library.',
+        details: 'npm install xlsx'
+      });
+    }
+
+    // Read the Excel file
+    const workbook = XLSX.read(req.file.buffer, {
+      cellStyles: true,
+      cellFormulas: true,
+      cellDates: true,
+      cellNF: true,
+      sheetStubs: true
+    });
+
+    console.log('📊 Workbook sheets:', workbook.SheetNames);
+    
+    // Use first sheet or find appropriate sheet
+    let sheetName = workbook.SheetNames[0];
+    
+    // Try to find a sheet with forecast-related name
+    for (const name of workbook.SheetNames) {
+      if (name.toLowerCase().includes('forecast') || 
+          name.toLowerCase().includes('予測') || 
+          name.toLowerCase().includes('計画')) {
+        sheetName = name;
+        break;
+      }
+    }
+    
+    console.log('📊 Using sheet:', sheetName);
+    const worksheet = workbook.Sheets[sheetName];
+    
+    if (!worksheet) {
+      return res.status(400).json({ error: 'No valid worksheet found in Excel file' });
+    }
+
+    // Convert to JSON with headers
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+      header: 1, // Use array format to handle any header structure
+      defval: '',
+      blankrows: false
+    });
+    
+    console.log('📊 Raw data rows:', jsonData.length);
+    console.log('📊 Sample rows:', jsonData.slice(0, 5));
+    
+    if (jsonData.length < 2) {
+      return res.status(400).json({ error: 'Excel file must have at least 2 rows (header + data)' });
+    }
+
+    // Enhanced parsing logic
+    const results = [];
+    let headerRow = null;
+    let drawingColumnIndex = -1;
+    let monthColumns = [];
+    
+    // Find header row and identify columns
+    for (let rowIndex = 0; rowIndex < Math.min(5, jsonData.length); rowIndex++) {
+      const row = jsonData[rowIndex];
+      
+      // Look for drawing number column
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
+        const cellValue = String(row[colIndex] || '').trim();
+        
+        // Check if this looks like a drawing number or drawing number header
+        if (cellValue.includes('PP4166') || 
+            cellValue.toLowerCase().includes('drawing') ||
+            cellValue.includes('図番') ||
+            cellValue.includes('品番')) {
+          
+          headerRow = rowIndex;
+          drawingColumnIndex = colIndex;
+          console.log(`📊 Found drawing column at row ${rowIndex}, col ${colIndex}: "${cellValue}"`);
+          break;
+        }
+      }
+      
+      if (headerRow !== null) break;
+    }
+    
+    if (headerRow === null || drawingColumnIndex === -1) {
+      return res.status(400).json({ 
+        error: 'Could not find drawing number column. Please ensure your Excel file has a column with drawing numbers (PP4166-xxx) or headers like "Drawing Number", "図番", "品番"'
+      });
+    }
+    
+    // Identify month columns from header row
+    const headerRowData = jsonData[headerRow];
+    for (let colIndex = drawingColumnIndex + 1; colIndex < headerRowData.length; colIndex++) {
+      const headerValue = String(headerRowData[colIndex] || '').trim();
+      
+      if (headerValue) {
+        const monthInfo = parseMonthHeader(headerValue);
+        if (monthInfo) {
+          monthColumns.push({
+            index: colIndex,
+            header: headerValue,
+            monthKey: monthInfo.monthKey,
+            displayName: monthInfo.displayName
+          });
+          console.log(`📅 Found month column ${colIndex}: "${headerValue}" -> ${monthInfo.monthKey}`);
+        }
+      }
+    }
+    
+    console.log(`📅 Total month columns found: ${monthColumns.length}`);
+    
+    if (monthColumns.length === 0) {
+      return res.status(400).json({ 
+        error: 'Could not find any month columns. Please ensure your Excel file has month headers like "8月", "Aug", "2025/8", etc.'
+      });
+    }
+    
+    // Process data rows
+    let processedRows = 0;
+    let savedForecasts = 0;
+    
+    for (let rowIndex = headerRow + 1; rowIndex < jsonData.length; rowIndex++) {
+      const row = jsonData[rowIndex];
+      const drawingNumber = String(row[drawingColumnIndex] || '').trim();
+      
+      // Skip rows without valid drawing numbers
+      if (!drawingNumber || !drawingNumber.startsWith('PP4166')) {
+        continue;
+      }
+      
+      processedRows++;
+      
+      // Process each month column
+      for (const monthCol of monthColumns) {
+        const quantity = parseInt(row[monthCol.index]) || 0;
+        
+        if (quantity > 0) {
+          try {
+            const result = await saveForecast(drawingNumber, monthCol.monthKey, quantity);
+            if (result.success) {
+              savedForecasts++;
+              console.log(`✅ Saved: ${drawingNumber} - ${monthCol.monthKey} = ${quantity}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error saving forecast for ${drawingNumber}-${monthCol.monthKey}:`, error);
+          }
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Import completed: ${savedForecasts} forecasts saved from ${processedRows} data rows`,
+      details: {
+        sheetName: sheetName,
+        headerRow: headerRow + 1,
+        monthColumns: monthColumns.length,
+        rowsProcessed: processedRows,
+        saved: savedForecasts
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in forecast import:', error);
+    res.status(500).json({ 
+      error: 'Failed to import forecast data',
+      details: error.message 
+    });
+  }
+});
+
+// ============ MATERIAL STOCK API ENDPOINTS ============
+
+// Get material stock data with enhanced formatting
+app.get('/api/material-stocks', enhancedRequireAuth, async (req, res) => {
+  console.log('🌐 GET /api/material-stocks called');
+  
+  try {
+    const stocks = await getAllMaterialStocks();
+    
+    // Add computed fields for better client-side usage
+    const enhancedStocks = stocks.map(stock => ({
+      ...stock,
+      last_updated_formatted: stock.updated_at ? 
+        new Date(stock.updated_at).toLocaleString() : 
+        'Never',
+      has_stock: (stock.quantity || 0) > 0,
+      stock_level: (stock.quantity || 0) > 100 ? 'high' : 
+                   (stock.quantity || 0) > 50 ? 'medium' :
+                   (stock.quantity || 0) > 0 ? 'low' : 'empty'
+    }));
+    
+    console.log('📤 Sending enhanced material stocks response with', enhancedStocks.length, 'records');
+    res.json(enhancedStocks);
+    
+  } catch (error) {
+    console.error('❌ Error fetching material stocks:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch material stock data',
+      details: error.message 
+    });
+  }
+});
+
+// Enhanced material stock saving with better error handling
+app.post('/api/material-stocks', requireAdminAuth, async (req, res) => {
+  console.log('🌐 POST /api/material-stocks called');
+  console.log('📊 Request body:', req.body);
+  
+  try {
+    const { stocks } = req.body;
+    
+    if (!stocks || typeof stocks !== 'object') {
+      return res.status(400).json({ 
+        error: 'Invalid stock data format', 
+        expected: 'Object with group keys and stock data' 
+      });
+    }
+    
+    let saved = 0;
+    let errors = 0;
+    const results = [];
+    
+    // Save each stock entry
+    for (const [groupKey, stockData] of Object.entries(stocks)) {
+      if (groupKey !== 'lastSaved' && groupKey !== 'calculationsGenerated') {
+        try {
+          const result = await saveMaterialStock(
+            groupKey,
+            stockData.groupName || groupKey,
+            parseInt(stockData.quantity) || 0
+          );
+          
+          if (result.success) {
+            saved++;
+            results.push({ groupKey, status: 'saved', data: result.data });
+          } else {
+            errors++;
+            results.push({ groupKey, status: 'error', error: result.error });
+          }
+        } catch (error) {
+          console.error(`❌ Error saving stock for ${groupKey}:`, error);
+          errors++;
+          results.push({ groupKey, status: 'error', error: error.message });
+        }
+      }
+    }
+    
+    console.log(`📦 Material stocks batch save completed: ${saved} saved, ${errors} errors`);
+    
+    const response = { 
+      success: saved > 0, 
+      message: `Material stocks batch save: ${saved} groups saved${errors > 0 ? `, ${errors} errors` : ''}`,
+      saved,
+      errors,
+      results: results
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error in material stocks batch save:', error);
+    res.status(500).json({ 
+      error: 'Failed to save material stock data',
+      details: error.message 
+    });
+  }
+});
+
+// Clear stocks endpoint (for testing/maintenance)
+app.delete('/api/material-stocks/clear', requireAdminAuth, async (req, res) => {
+  console.log('🗑️ Clear all material stocks requested');
+  
+  try {
+    if (isProduction && sql) {
+      const deleteQuery = 'DELETE FROM material_stocks';
+      await sql.query(deleteQuery);
+      console.log('✅ All material stocks cleared from Postgres');
+    } else {
+      inMemoryStocks = [];
+      console.log('✅ All material stocks cleared from memory');
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'All material stock data cleared successfully' 
+    });
+    
+  } catch (error) {
+    console.error('❌ Error clearing material stocks:', error);
+    res.status(500).json({ 
+      error: 'Failed to clear material stock data',
+      details: error.message 
+    });
+  }
+});
+
+// ============ DEBUG ENDPOINTS ============
+
+// Enhanced debug endpoint for forecasts
+app.get('/api/debug/forecasts', enhancedRequireAuth, async (req, res) => {
+  console.log('🔍 DEBUG: Checking forecast data');
+  
+  try {
+    if (isProduction && sql) {
+      const result = await sql.query('SELECT * FROM forecasts ORDER BY drawing_number, month_date');
+      console.log('🔍 DEBUG: Postgres forecasts count:', result.rows.length);
+      
+      // Detailed logging of each forecast entry
+      result.rows.forEach((row, index) => {
+        console.log(`🔍 DEBUG: Forecast ${index + 1}: ${row.drawing_number} | ${row.month_date} | ${row.quantity}`);
+      });
+      
+      res.json({ 
+        source: 'postgres', 
+        data: result.rows,
+        count: result.rows.length,
+        sample: result.rows.slice(0, 5) // Show first 5 for debugging
+      });
+    } else {
+      console.log('🔍 DEBUG: In-memory forecasts count:', inMemoryForecasts.length);
+      
+      inMemoryForecasts.forEach((row, index) => {
+        console.log(`🔍 DEBUG: Memory Forecast ${index + 1}: ${row.drawing_number} | ${row.month_date} | ${row.quantity}`);
+      });
+      
+      res.json({ 
+        source: 'memory', 
+        data: inMemoryForecasts,
+        count: inMemoryForecasts.length,
+        sample: inMemoryForecasts.slice(0, 5)
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error in debug endpoint:', error);
+    res.status(500).json({ error: 'Debug failed', details: error.message });
+  }
+});
+
+// Debug endpoint for stock calculations
+app.get('/api/debug/stocks', enhancedRequireAuth, async (req, res) => {
+  console.log('🔍 DEBUG: Material stocks endpoint called');
+  
+  try {
+    const stocks = await getAllMaterialStocks();
+    const orders = await getAllOrders();
+    const forecasts = await getAllForecasts();
+    
+    // Basic stock consumption calculation for debugging
+    const stockSummary = {};
+    
+    stocks.forEach(stock => {
+      const relatedOrders = orders.filter(order => {
+        // This is a simplified mapping - in real implementation you'd use product groups
+        return order.drawing_number && stock.group_name && 
+               (order.drawing_number.includes('4681') && stock.group_key === 'upper-frame' ||
+                order.drawing_number.includes('4726') && stock.group_key === 'top-plate' ||
+                (order.drawing_number.includes('4731') || order.drawing_number.includes('7106')) && stock.group_key === 'middle-frame');
+      });
+      
+      const totalDemand = relatedOrders.reduce((sum, order) => sum + (parseInt(order.quantity) || 0), 0);
+      
+      stockSummary[stock.group_key] = {
+        groupName: stock.group_name,
+        currentStock: stock.quantity || 0,
+        totalDemand: totalDemand,
+        relatedOrdersCount: relatedOrders.length,
+        stockSufficient: (stock.quantity || 0) >= totalDemand,
+        shortage: Math.max(0, totalDemand - (stock.quantity || 0))
+      };
+    });
+    
+    res.json({
+      source: isProduction ? 'postgres' : 'memory',
+      stockCount: stocks.length,
+      orderCount: orders.length,
+      forecastCount: forecasts.length,
+      stockSummary: stockSummary,
+      rawStocks: stocks,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in stocks debug endpoint:', error);
+    res.status(500).json({ 
+      error: 'Stock debug failed', 
+      details: error.message 
+    });
+  }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('❌ Unhandled error:', error);
@@ -1171,17 +1720,20 @@ app.use((error, req, res, next) => {
 // Initialize database and start server
 async function startServer() {
   try {
-    console.log('🚀 Starting EDI Management System...');
+    console.log('🚀 Starting Enhanced EDI Management System...');
     await initializeDatabase();
     
     if (!isProduction) {
       app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
         console.log(`📁 Static files served from: ${path.join(__dirname, 'public')}`);
+        console.log(`📦 Material stock integration: ACTIVE`);
+        console.log(`📊 Enhanced chart rendering: ACTIVE`);
+        console.log(`🔄 Cross-window communication: ACTIVE`);
       });
     }
     
-    console.log('✅ Server initialization complete');
+    console.log('✅ Enhanced server initialization complete');
   } catch (error) {
     console.error('❌ Failed to start server:', error);
   }
