@@ -164,6 +164,16 @@
             background: #047857;
         }
 
+        .btn-warning {
+            background: #f59e0b;
+            border-color: #d97706;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
         .btn-logout {
             background: #dc2626;
             border-color: #b91c1c;
@@ -573,7 +583,7 @@
                 Loading data...
             </div>
 
-            <!-- 🔧 SIMPLIFIED Controls - Removed JSON export and Refresh -->
+            <!-- 📊 Enhanced Controls with Login History -->
             <div class="controls">
                 <!-- Import controls -->
                 <div class="import-controls">
@@ -582,16 +592,19 @@
                     <button class="btn btn-primary admin-only" id="importBtn" disabled>📤 Import WebEDI Data</button>
                 </div>
                 
-                <!-- 🔧 SIMPLIFIED Export controls - Only CSV -->
+                <!-- Export controls -->
                 <div class="export-controls">
                     <button class="btn btn-success" id="exportCSVBtn" onclick="exportToCSV()">
                         📊 Export to CSV
                     </button>
                 </div>
                 
-                <!-- 🔧 SIMPLIFIED Save controls - Removed Refresh -->
+                <!-- Save and admin controls -->
                 <div class="save-controls">
                     <button class="btn btn-primary admin-only" id="saveAllBtn">💾 Save All Changes</button>
+                    <button class="btn btn-warning admin-only" id="loginHistoryBtn" onclick="showLoginHistory()" style="display: none;">
+                        📋 Login History
+                    </button>
                 </div>
                 
                 <div class="read-only-notice" id="readOnlyNotice">
@@ -846,6 +859,18 @@
             } else {
                 console.error('❌ EDI Dashboard not found');
                 alert('Export functionality not available');
+            }
+        };
+
+        // ============ LOGIN HISTORY FUNCTIONALITY ============
+        window.showLoginHistory = function() {
+            if (window.ediDashboard) {
+                // This function would be implemented in the dashboard-app.js
+                console.log('📋 Opening login history...');
+                alert('Login History feature - to be implemented in dashboard-app.js');
+            } else {
+                console.error('❌ EDI Dashboard not found');
+                alert('Login History functionality not available');
             }
         };
         

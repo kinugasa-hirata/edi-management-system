@@ -290,8 +290,8 @@
             <button class="quick-btn admin" onclick="quickLogin('admin')">
                 🔑 Admin Login
             </button>
-            <button class="quick-btn user" onclick="quickLogin('user')">
-                👁️ View Only Login
+            <button class="quick-btn user" onclick="quickLogin('user5313')">
+                👁️ User Login (5313)
             </button>
         </div>
 
@@ -304,7 +304,7 @@
                     type="text" 
                     id="username" 
                     name="username" 
-                    placeholder="admin or user" 
+                    placeholder="admin, user5313, or user5314" 
                     required
                     autocomplete="username"
                 >
@@ -316,9 +316,10 @@
                     type="password" 
                     id="password" 
                     name="password" 
-                    placeholder="Enter any password" 
+                    placeholder="4-digit password for users" 
                     required
                     autocomplete="current-password"
+                    maxlength="10"
                 >
             </div>
 
@@ -334,26 +335,28 @@
                 <div class="user-type admin">
                     <h5>🔑 Admin Access</h5>
                     <p>Username: <span class="example">admin</span></p>
+                    <p>Password: <span class="example">any</span></p>
                     <p>Can view and edit all data</p>
                     <p>Full system access</p>
                 </div>
                 
                 <div class="user-type user">
-                    <h5>👁️ View Only Access</h5>
-                    <p>Username: <span class="example">user</span></p>
+                    <h5>👁️ User Access</h5>
+                    <p>Username: <span class="example">user5313</span> or <span class="example">user5314</span></p>
+                    <p>Password: <span class="example">4 digits</span> (e.g., 1234)</p>
                     <p>Can only view data, no editing</p>
                     <p>Read-only dashboard access</p>
                 </div>
             </div>
             
-            <p style="margin-top: 10px;"><strong>Password:</strong> Can be anything for demonstration purposes.</p>
+            <p style="margin-top: 15px;"><strong>Security:</strong> All login attempts are tracked and logged for security purposes.</p>
         </div>
     </div>
 
     <script>
         function quickLogin(type) {
             document.getElementById('username').value = type;
-            document.getElementById('password').value = 'demo';
+            document.getElementById('password').value = type === 'admin' ? 'demo' : '1234';
             
             // Auto-submit the form
             document.getElementById('loginForm').dispatchEvent(new Event('submit'));
@@ -368,8 +371,9 @@
             const loading = document.getElementById('loadingIndicator');
             
             // Validate username format before sending
-            if (username !== 'admin' && username !== 'user') {
-                showMessage('Username must be either "admin" or "user"', 'error');
+            const validUsernames = ['admin', 'user5313', 'user5314'];
+            if (!validUsernames.includes(username)) {
+                showMessage('Username must be "admin", "user5313", or "user5314"', 'error');
                 return;
             }
             
@@ -389,7 +393,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    const accessType = result.role === 'admin' ? 'Admin' : 'View-Only';
+                    const accessType = result.role === 'admin' ? 'Admin' : 'User';
                     showMessage(`${accessType} login successful! Redirecting...`, 'success');
                     setTimeout(() => {
                         window.location.href = '/dashboard';

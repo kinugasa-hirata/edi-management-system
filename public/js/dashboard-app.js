@@ -1,4 +1,4 @@
-// dashboard-app.js - Complete Enhanced EDI Dashboard Application with Stock Integration
+// dashboard-app.js - Complete Enhanced EDI Dashboard Application with Fixed Stock Integration
 
 class EDIDashboard {
     constructor() {
@@ -123,6 +123,12 @@ class EDIDashboard {
             
             // Hide read-only notice
             if (readOnlyNotice) readOnlyNotice.classList.remove('show');
+            
+            // Show login history button for admin users  
+            const loginHistoryBtn = document.getElementById('loginHistoryBtn');
+            if (loginHistoryBtn) {
+                loginHistoryBtn.style.display = 'inline-flex';
+            }
         }
     }
 
@@ -398,16 +404,18 @@ class EDIDashboard {
         }
     }
 
-    // Enhanced method to get all items for a group (used in stock calculations)
+    // FIXED: Enhanced method to get all items for a group (EXCLUDES OK STATUS ORDERS)
     getAllItemsForGroup(products) {
         const items = [];
         
         products.forEach(product => {
-            // Add EDI orders (excluding "ok" status as per requirements)
+            // CRITICAL: Add EDI orders - exclude "ok" status as they don't need stock
             const orders = this.ediData.filter(order => 
                 order.drawing_number === product && 
                 (!order.status || order.status.toLowerCase().trim() !== 'ok')
             );
+            
+            console.log(`📦 Found ${orders.length} non-OK orders for ${product} (excluded OK status)`);
             
             orders.forEach(order => {
                 items.push({
@@ -449,6 +457,7 @@ class EDIDashboard {
             });
         });
         
+        console.log(`📦 Total items for stock calculation: ${items.length} (orders + forecasts)`);
         return items;
     }
 
@@ -832,7 +841,7 @@ class EDIDashboard {
         }
     }
 
-    // Enhanced chart rendering with stock integration and proper stacking
+    // FIXED: Enhanced chart rendering with stock integration and proper stacking
     createBarChart(containerId, data, drawingNumber) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -911,13 +920,19 @@ class EDIDashboard {
                     const segmentY = barBottom - cumulativeHeight - segmentHeight;
                     const statusColor = this.getStatusColor(order.status);
                     
-                    // Check if this specific order has sufficient stock
-                    const orderItem = {
-                        type: 'order',
-                        orderNumber: order.orderNumber,
-                        date: d.date
-                    };
-                    const hasStock = this.isItemStockSufficient(drawingNumber, orderItem);
+                    // CRITICAL: Check if this order needs stock (exclude OK status from stock calculations)
+                    const isOkStatus = order.status && order.status.toLowerCase().trim() === 'ok';
+                    let hasStock = true; // Default to sufficient
+                    
+                    if (!isOkStatus) {
+                        // Only check stock for non-OK orders
+                        const orderItem = {
+                            type: 'order',
+                            orderNumber: order.orderNumber,
+                            date: d.date
+                        };
+                        hasStock = this.isItemStockSufficient(drawingNumber, orderItem);
+                    }
                     
                     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('x', x);
@@ -925,15 +940,15 @@ class EDIDashboard {
                     rect.setAttribute('width', barWidth);
                     rect.setAttribute('height', segmentHeight);
                     
-                    // Apply stock-based styling
-                    if (hasStock) {
-                        // Sufficient stock: normal filled bar
+                    // Apply stock-based styling - OK status always renders normally
+                    if (isOkStatus || hasStock) {
+                        // OK status or sufficient stock: normal filled bar
                         rect.setAttribute('fill', statusColor);
                         rect.setAttribute('opacity', '1');
                         rect.setAttribute('stroke', 'white');
                         rect.setAttribute('stroke-width', '1');
                     } else {
-                        // Insufficient stock: transparent with dashed outline
+                        // Insufficient stock for non-OK orders: transparent with dashed outline
                         rect.setAttribute('fill', 'none');
                         rect.setAttribute('stroke', statusColor);
                         rect.setAttribute('stroke-width', '2');
@@ -945,14 +960,16 @@ class EDIDashboard {
                     
                     // Enhanced tooltip with stock information
                     const statusText = order.status ? ` (Status: "${order.status}")` : ' (No status)';
-                    const stockText = hasStock ? '' : ' [INSUFFICIENT STOCK]';
-                    const priorityText = hasStock ? '' : ' - Material shortage detected';
+                    const stockText = isOkStatus ? ' [COMPLETED - No stock needed]' : 
+                                    hasStock ? '' : ' [INSUFFICIENT STOCK]';
+                    const priorityText = isOkStatus ? ' - Already completed' : 
+                                       hasStock ? '' : ' - Material shortage detected';
                     const tooltipText = `${this.formatDateShort(d.date)} - ${order.orderNumber}\nQuantity: ${order.quantity}${statusText}${stockText}${priorityText}`;
                     rect.setAttribute('title', tooltipText);
                     
                     svg.appendChild(rect);
                     
-                    // Add separator lines between segments (but make them more visible for insufficient stock)
+                    // Add separator lines between segments
                     if (orderIndex > 0) {
                         const lineY = barBottom - cumulativeHeight;
                         const separatorLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -960,9 +977,9 @@ class EDIDashboard {
                         separatorLine.setAttribute('y1', lineY);
                         separatorLine.setAttribute('x2', x + barWidth);
                         separatorLine.setAttribute('y2', lineY);
-                        separatorLine.setAttribute('stroke', hasStock ? 'white' : '#dc2626');
-                        separatorLine.setAttribute('stroke-width', hasStock ? '2' : '3');
-                        separatorLine.setAttribute('stroke-dasharray', hasStock ? '4,2' : '6,3');
+                        separatorLine.setAttribute('stroke', (isOkStatus || hasStock) ? 'white' : '#dc2626');
+                        separatorLine.setAttribute('stroke-width', (isOkStatus || hasStock) ? '2' : '3');
+                        separatorLine.setAttribute('stroke-dasharray', (isOkStatus || hasStock) ? '4,2' : '6,3');
                         separatorLine.setAttribute('opacity', '0.9');
                         svg.appendChild(separatorLine);
                     }
@@ -973,6 +990,9 @@ class EDIDashboard {
                 // Add order count label if multiple orders
                 if (d.orders.length > 1) {
                     const hasAnyStock = d.orders.some(order => {
+                        const isOkStatus = order.status && order.status.toLowerCase().trim() === 'ok';
+                        if (isOkStatus) return true; // OK orders don't need stock
+                        
                         const orderItem = { type: 'order', orderNumber: order.orderNumber, date: d.date };
                         return this.isItemStockSufficient(drawingNumber, orderItem);
                     });
@@ -1043,6 +1063,9 @@ class EDIDashboard {
             // Add quantity label on top of bar with stock warning
             const hasAnyStock = d.type === 'order' ? 
                 d.orders.some(order => {
+                    const isOkStatus = order.status && order.status.toLowerCase().trim() === 'ok';
+                    if (isOkStatus) return true; // OK orders don't need stock
+                    
                     const orderItem = { type: 'order', orderNumber: order.orderNumber, date: d.date };
                     return this.isItemStockSufficient(drawingNumber, orderItem);
                 }) : 

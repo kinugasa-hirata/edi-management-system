@@ -36,6 +36,9 @@ let nextId = 1;
 let nextForecastId = 1;
 let nextStockId = 1;
 
+// In-memory login tracking
+let loginHistory = [];
+
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -724,27 +727,62 @@ app.get('/stock', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// Enhanced login endpoint
+// Enhanced login endpoint with specific users and 4-digit password validation
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log('🔑 Login attempt:', { username });
+    console.log('🔑 Login attempt:', { username, passwordLength: password?.length });
     
     let userRole = null;
+    let isValidLogin = false;
     
+    // Admin login (existing)
     if (username === 'admin') {
       userRole = 'admin';
-    } else if (username === 'user') {
-      userRole = 'user';
+      isValidLogin = true; // Admin can use any password
+    } 
+    // Specific users with 4-digit password requirement
+    else if (username === 'user5313' || username === 'user5314') {
+      // Validate 4-digit password
+      if (password && /^\d{4}$/.test(password)) {
+        userRole = 'user';
+        isValidLogin = true;
+      } else {
+        console.log('❌ Invalid password format for user:', username, 'Expected: 4 digits');
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Password must be exactly 4 digits for user accounts' 
+        });
+      }
     }
     
-    if (userRole) {
-      // Set user data in session (no regeneration to avoid issues)
-      req.session.user = { 
+    if (isValidLogin && userRole) {
+      const loginTime = new Date().toISOString();
+      const sessionData = {
         username, 
         role: userRole,
-        loginTime: new Date().toISOString() 
+        loginTime: loginTime,
+        sessionId: req.sessionID
       };
+      
+      // Set user data in session
+      req.session.user = sessionData;
+      
+      // Track login history
+      loginHistory.push({
+        username,
+        role: userRole,
+        action: 'LOGIN',
+        timestamp: loginTime,
+        sessionId: req.sessionID,
+        userAgent: req.headers['user-agent'] || 'Unknown',
+        ip: req.ip || req.connection.remoteAddress || 'Unknown'
+      });
+      
+      // Keep only last 100 login records
+      if (loginHistory.length > 100) {
+        loginHistory = loginHistory.slice(-100);
+      }
       
       console.log('✅ Login successful for:', username, 'Role:', userRole);
       console.log('✅ Session ID:', req.sessionID);
@@ -753,6 +791,7 @@ app.post('/api/login', (req, res) => {
         success: true, 
         message: 'Login successful',
         role: userRole,
+        username: username,
         permissions: {
           canEdit: userRole === 'admin',
           canView: true
@@ -760,9 +799,24 @@ app.post('/api/login', (req, res) => {
       });
     } else {
       console.log('❌ Login failed for:', username);
+      
+      // Track failed login attempt
+      loginHistory.push({
+        username: username || 'Unknown',
+        role: null,
+        action: 'LOGIN_FAILED',
+        timestamp: new Date().toISOString(),
+        sessionId: req.sessionID,
+        userAgent: req.headers['user-agent'] || 'Unknown',
+        ip: req.ip || req.connection.remoteAddress || 'Unknown',
+        reason: !username ? 'No username' : 
+               (username !== 'admin' && username !== 'user5313' && username !== 'user5314') ? 'Invalid username' : 
+               'Invalid password format'
+      });
+      
       res.status(401).json({ 
         success: false, 
-        message: 'Invalid credentials. Username must be "admin" or "user"' 
+        message: 'Invalid credentials. Valid users: admin, user5313, user5314. Users need 4-digit password.' 
       });
     }
   } catch (error) {
@@ -791,11 +845,25 @@ app.get('/api/user-info', enhancedRequireAuth, (req, res) => {
   }
 });
 
-// Enhanced logout endpoint
+// Enhanced logout endpoint with logging
 app.post('/api/logout', (req, res) => {
   try {
     const username = req.session?.user?.username;
+    const sessionId = req.sessionID;
     console.log('🚪 Logout attempt for:', username);
+    
+    // Track logout before destroying session
+    if (username) {
+      loginHistory.push({
+        username,
+        role: req.session.user.role,
+        action: 'LOGOUT',
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId,
+        userAgent: req.headers['user-agent'] || 'Unknown',
+        ip: req.ip || req.connection.remoteAddress || 'Unknown'
+      });
+    }
     
     req.session.destroy((err) => {
       if (err) {
@@ -811,6 +879,34 @@ app.post('/api/logout', (req, res) => {
   } catch (error) {
     console.error('❌ Logout error:', error);
     res.status(500).json({ success: false, message: 'Logout failed' });
+  }
+});
+
+// New endpoint: Get login history (admin only)
+app.get('/api/login-history', requireAdminAuth, (req, res) => {
+  try {
+    console.log('📊 Login history requested by:', req.session.user.username);
+    
+    // Return last 50 entries, most recent first
+    const recentHistory = loginHistory
+      .slice(-50)
+      .reverse()
+      .map(entry => ({
+        ...entry,
+        ip: entry.ip === '::1' ? 'localhost' : entry.ip // Clean up localhost display
+      }));
+    
+    res.json({
+      success: true,
+      history: recentHistory,
+      totalEntries: loginHistory.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching login history:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch login history' 
+    });
   }
 });
 
@@ -1730,6 +1826,8 @@ async function startServer() {
         console.log(`📦 Material stock integration: ACTIVE`);
         console.log(`📊 Enhanced chart rendering: ACTIVE`);
         console.log(`🔄 Cross-window communication: ACTIVE`);
+        console.log(`🔐 Enhanced login system: user5313, user5314 (4-digit passwords)`);
+        console.log(`📋 Login tracking: ACTIVE`);
       });
     }
     
