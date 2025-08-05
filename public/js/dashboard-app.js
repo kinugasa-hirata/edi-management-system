@@ -1,4 +1,4 @@
-// dashboard-app.js - Complete Enhanced EDI Dashboard Application with Fixed Stock Integration
+// dashboard-app.js - FIXED: Enhanced EDI Dashboard with Corrected Product Groups and Stock Calculation
 
 class EDIDashboard {
     constructor() {
@@ -24,15 +24,15 @@ class EDIDashboard {
         // Product names mapping
         this.PRODUCT_NAMES = {
             'PP4166-4681P003': 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
-            'PP4166-4681P004': 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
+            'PP4166-4681P004': 'ｱｯﾊﾟﾌﾞﾞﾚｰﾑ',
             'PP4166-4726P003': 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
             'PP4166-4726P004': 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
-            'PP4166-4731P002': 'ﾐﾄﾞﾙﾌﾚｰﾑ',
-            'PP4166-7106P001': 'ﾐﾄﾞﾙﾌﾚｰﾑ',
-            'PP4166-7106P003': 'ﾐﾄﾞﾙﾌﾚｰﾑ'
+            'PP4166-4731P002': 'ﾐﾄﾞﾙﾌﾚｰﾑ A',
+            'PP4166-7106P001': 'ﾐﾄﾞﾙﾌﾚｰﾑ B',
+            'PP4166-7106P003': 'ﾐﾄﾞﾙﾌﾚｰﾑ B'
         };
 
-        // Product group mappings for material stock calculations
+        // FIXED: Updated product group mappings - Split middle frame into two separate groups
         this.productGroups = {
             'upper-frame': {
                 name: 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
@@ -42,9 +42,13 @@ class EDIDashboard {
                 name: 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
                 products: ['PP4166-4726P003', 'PP4166-4726P004']
             },
-            'middle-frame': {
-                name: 'ﾐﾄﾞﾙﾌﾚｰﾑ',
-                products: ['PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003']
+            'middle-frame-a': {
+                name: 'ﾐﾄﾞﾙﾌﾚｰﾑ A',
+                products: ['PP4166-4731P002']
+            },
+            'middle-frame-b': {
+                name: 'ﾐﾄﾞﾙﾌﾚｰﾑ B',
+                products: ['PP4166-7106P001', 'PP4166-7106P003']
             }
         };
     }
@@ -315,9 +319,9 @@ class EDIDashboard {
         }
     }
 
-    // Enhanced stock consumption calculation with better error handling
+    // FIXED: Enhanced stock consumption calculation with proper forecast inclusion
     async calculateMaterialStockConsumption() {
-        console.log('🧮 Dashboard: Calculating comprehensive material stock consumption...');
+        console.log('🧮 Dashboard: FIXED - Calculating comprehensive material stock consumption...');
         
         // Initialize if not exists
         if (!this.stockCalculations) {
@@ -329,7 +333,7 @@ class EDIDashboard {
             const stockData = this.materialStocks[groupKey];
             const currentStock = stockData ? (stockData.quantity || 0) : 0;
             
-            console.log(`📦 Calculating for ${group.name} with ${currentStock} initial stock`);
+            console.log(`📦 FIXED: Calculating for ${group.name} with ${currentStock} initial stock`);
             
             if (currentStock <= 0) {
                 // No stock available, all items are insufficient
@@ -343,8 +347,8 @@ class EDIDashboard {
                 return;
             }
             
-            // Get all items (orders + forecasts) for this group's products
-            const allItems = this.getAllItemsForGroup(group.products);
+            // FIXED: Get all items (orders + forecasts) for this group's products with better debugging
+            const allItems = this.getAllItemsForGroupFixed(group.products);
             
             // Sort chronologically by delivery date
             allItems.sort((a, b) => {
@@ -353,13 +357,16 @@ class EDIDashboard {
                 return dateA - dateB;
             });
             
-            console.log(`📦 Found ${allItems.length} items for ${group.name}`);
+            console.log(`📦 FIXED: Found ${allItems.length} items for ${group.name}`);
+            allItems.forEach((item, index) => {
+                console.log(`  ${index + 1}. ${item.type}: ${item.date} - ${item.quantity} (Product: ${item.product})`);
+            });
             
             // Calculate running stock consumption
             let runningStock = currentStock;
             const itemAvailability = {};
             
-            allItems.forEach(item => {
+            allItems.forEach((item, index) => {
                 const beforeStock = runningStock;
                 runningStock -= item.quantity;
                 const afterStock = Math.max(0, runningStock);
@@ -382,7 +389,7 @@ class EDIDashboard {
                     shortfall: sufficient ? 0 : item.quantity - beforeStock
                 };
                 
-                console.log(`📦 ${group.name}: ${itemKey} - Stock: ${beforeStock} → ${afterStock}, Sufficient: ${sufficient}`);
+                console.log(`📦 ${group.name}: Item ${index + 1} (${itemKey}) - Stock: ${beforeStock} → ${afterStock}, Sufficient: ${sufficient}`);
             });
             
             this.stockCalculations[groupKey] = {
@@ -394,7 +401,7 @@ class EDIDashboard {
             };
         });
         
-        console.log('✅ Stock calculations completed:', this.stockCalculations);
+        console.log('✅ FIXED: Stock calculations completed:', this.stockCalculations);
         
         // Save calculations to localStorage for other pages
         try {
@@ -404,18 +411,20 @@ class EDIDashboard {
         }
     }
 
-    // FIXED: Enhanced method to get all items for a group (EXCLUDES OK STATUS ORDERS)
-    getAllItemsForGroup(products) {
+    // FIXED: Enhanced method to get all items for a group with better forecast inclusion
+    getAllItemsForGroupFixed(products) {
         const items = [];
         
         products.forEach(product => {
+            console.log(`🔍 FIXED: Processing product ${product}...`);
+            
             // CRITICAL: Add EDI orders - exclude "ok" status as they don't need stock
             const orders = this.ediData.filter(order => 
                 order.drawing_number === product && 
                 (!order.status || order.status.toLowerCase().trim() !== 'ok')
             );
             
-            console.log(`📦 Found ${orders.length} non-OK orders for ${product} (excluded OK status)`);
+            console.log(`📦 FIXED: Found ${orders.length} non-OK orders for ${product} (excluded OK status orders)`);
             
             orders.forEach(order => {
                 items.push({
@@ -430,11 +439,17 @@ class EDIDashboard {
                 });
             });
             
-            // Add forecast data as future orders
+            // FIXED: Add forecast data as future orders with enhanced debugging
+            console.log(`🔍 FIXED: Checking forecasts for ${product}...`);
+            console.log(`📊 Available forecast keys:`, Object.keys(this.forecastData));
+            
+            let forecastsFound = 0;
             Object.keys(this.forecastData).forEach(key => {
                 if (key.startsWith(product + '-')) {
                     const monthDate = key.split('-').slice(1).join('-');
                     const quantity = this.forecastData[key];
+                    
+                    console.log(`🔍 FIXED: Checking forecast ${key}: monthDate=${monthDate}, quantity=${quantity}`);
                     
                     if (quantity > 0) {
                         // Convert MM/01 to YYYY/MM/01 format for sorting
@@ -452,12 +467,19 @@ class EDIDashboard {
                             forecastKey: key,
                             priority: 3
                         });
+                        
+                        forecastsFound++;
+                        console.log(`✅ FIXED: Added forecast ${key} with quantity ${quantity} and date ${fullDate}`);
+                    } else {
+                        console.log(`⚠️ FIXED: Skipped forecast ${key} - quantity is ${quantity}`);
                     }
                 }
             });
+            
+            console.log(`📊 FIXED: Found ${forecastsFound} forecasts for ${product}`);
         });
         
-        console.log(`📦 Total items for stock calculation: ${items.length} (orders + forecasts)`);
+        console.log(`📦 FIXED: Total items for stock calculation: ${items.length} (orders + forecasts)`);
         return items;
     }
 
@@ -1186,7 +1208,7 @@ class EDIDashboard {
         titleText.setAttribute('text-anchor', 'middle');
         titleText.setAttribute('font-size', '10');
         titleText.setAttribute('fill', '#6b7280');
-        titleText.textContent = 'Delivery Schedule with Material Stock Analysis & Priority Stacking (OK→Comments→No Status)';
+        titleText.textContent = 'FIXED: Delivery Schedule with Material Stock Analysis & Forecast Integration & Priority Stacking (OK→Comments→No Status)';
         svg.appendChild(titleText);
         
         container.innerHTML = '';
@@ -1228,13 +1250,13 @@ class EDIDashboard {
             return dateA - dateB;
         });
         
-        console.log(`📊 Merged data for chart: ${combined.length} items (${orderData.length} orders + ${forecastBars.length} forecasts)`);
+        console.log(`📊 FIXED: Merged data for chart: ${combined.length} items (${orderData.length} orders + ${forecastBars.length} forecasts)`);
         return combined;
     }
 
     // Get forecast bars for chart with better date matching and type conversion
     getForecastBarsForChart(drawingNumber, existingData) {
-        console.log(`📊 Getting forecast bars for ${drawingNumber}`);
+        console.log(`📊 FIXED: Getting forecast bars for ${drawingNumber}`);
         console.log(`📊 Available forecast data keys:`, Object.keys(this.forecastData));
         console.log(`📊 Available forecast data:`, this.forecastData);
         
@@ -1255,7 +1277,7 @@ class EDIDashboard {
             const monthKey = `${String(month).padStart(2, '0')}/01`;
             const forecastKey = `${drawingNumber}-${monthKey}`;
             
-            console.log(`📊 Checking forecast key: ${forecastKey}`);
+            console.log(`📊 FIXED: Checking forecast key: ${forecastKey}`);
             
             // Enhanced type checking and conversion
             let forecastValue = this.forecastData[forecastKey];
@@ -1263,9 +1285,9 @@ class EDIDashboard {
             // Handle both string and number values, convert to number
             if (forecastValue !== undefined && forecastValue !== null && forecastValue !== '') {
                 forecastValue = typeof forecastValue === 'string' ? parseFloat(forecastValue) : forecastValue;
-                console.log(`📊 Forecast value for ${forecastKey}: ${forecastValue} (type: ${typeof forecastValue})`);
+                console.log(`📊 FIXED: Forecast value for ${forecastKey}: ${forecastValue} (type: ${typeof forecastValue})`);
             } else {
-                console.log(`📊 No forecast value for ${forecastKey} (value: ${forecastValue})`);
+                console.log(`📊 FIXED: No forecast value for ${forecastKey} (value: ${forecastValue})`);
                 continue;
             }
             
@@ -1286,17 +1308,17 @@ class EDIDashboard {
                         year: year
                     };
                     forecastBars.push(forecastBar);
-                    console.log(`✅ Added forecast bar:`, forecastBar);
+                    console.log(`✅ FIXED: Added forecast bar:`, forecastBar);
                 } else {
-                    console.log(`⚠️ Skipping forecast ${fullDate} - overlaps with existing delivery`);
+                    console.log(`⚠️ FIXED: Skipping forecast ${fullDate} - overlaps with existing delivery`);
                 }
             } else {
-                console.log(`⚠️ Invalid forecast data for ${forecastKey}: value=${forecastValue}, isNaN=${isNaN(forecastValue)}`);
+                console.log(`⚠️ FIXED: Invalid forecast data for ${forecastKey}: value=${forecastValue}, isNaN=${isNaN(forecastValue)}`);
             }
         }
         
-        console.log(`📊 Final forecast bars for ${drawingNumber}:`, forecastBars);
-        console.log(`📊 Total forecast bars: ${forecastBars.length}`);
+        console.log(`📊 FIXED: Final forecast bars for ${drawingNumber}:`, forecastBars);
+        console.log(`📊 FIXED: Total forecast bars: ${forecastBars.length}`);
         return forecastBars;
     }
 
@@ -1330,13 +1352,13 @@ class EDIDashboard {
     // ============ VERIFICATION AND DEBUGGING METHODS ============
     
     verifyForecastDataIntegrity() {
-        console.log('🔍 Verifying forecast data integrity...');
+        console.log('🔍 FIXED: Verifying forecast data integrity...');
         
         const now = new Date();
         const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
         const currentKey = `${currentMonth}/01`;
         
-        console.log(`🔍 Current month key format: ${currentKey}`);
+        console.log(`🔍 FIXED: Current month key format: ${currentKey}`);
         
         let foundDataCount = 0;
         this.DRAWING_NUMBER_ORDER.forEach(product => {
@@ -1344,35 +1366,35 @@ class EDIDashboard {
             const hasData = this.forecastData.hasOwnProperty(testKey);
             const value = this.forecastData[testKey];
             
-            console.log(`🔍 Testing ${testKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
+            console.log(`🔍 FIXED: Testing ${testKey}: ${hasData ? 'EXISTS' : 'MISSING'} (value: ${value})`);
             if (hasData && value > 0) {
                 foundDataCount++;
             }
         });
         
-        console.log(`🔍 Found ${foundDataCount} forecast entries for current month`);
+        console.log(`🔍 FIXED: Found ${foundDataCount} forecast entries for current month`);
         
         if (foundDataCount === 0) {
-            console.warn('⚠️ No forecast data found for current month. Check date format consistency.');
+            console.warn('⚠️ FIXED: No forecast data found for current month. Check date format consistency.');
             this.debugForecastDateFormats();
         }
     }
 
     debugForecastDateFormats() {
-        console.log('🔍 DEBUGGING FORECAST DATE FORMATS:');
+        console.log('🔍 FIXED: DEBUGGING FORECAST DATE FORMATS:');
         
         // Show all available keys and their formats
         Object.keys(this.forecastData).forEach(key => {
             const parts = key.split('-');
             const drawingNumber = parts[0];
             const dateKey = parts.slice(1).join('-');
-            console.log(`🔍 Key: ${key} | Drawing: ${drawingNumber} | Date: ${dateKey} | Value: ${this.forecastData[key]}`);
+            console.log(`🔍 FIXED: Key: ${key} | Drawing: ${drawingNumber} | Date: ${dateKey} | Value: ${this.forecastData[key]}`);
         });
         
         // Show expected format for current month
         const now = new Date();
         const expectedFormat = `${String(now.getMonth() + 1).padStart(2, '0')}/01`;
-        console.log(`🔍 Expected current month format: ${expectedFormat}`);
+        console.log(`🔍 FIXED: Expected current month format: ${expectedFormat}`);
         
         // Test format variations
         const testFormats = [
@@ -1382,12 +1404,12 @@ class EDIDashboard {
             `${now.getMonth() + 1}/1`
         ];
         
-        console.log('🔍 Testing format variations for first product:');
+        console.log('🔍 FIXED: Testing format variations for first product:');
         const testProduct = this.DRAWING_NUMBER_ORDER[0];
         testFormats.forEach(format => {
             const testKey = `${testProduct}-${format}`;
             const exists = this.forecastData.hasOwnProperty(testKey);
-            console.log(`🔍 Format ${format}: ${testKey} ${exists ? 'EXISTS' : 'MISSING'}`);
+            console.log(`🔍 FIXED: Format ${format}: ${testKey} ${exists ? 'EXISTS' : 'MISSING'}`);
         });
     }
 
@@ -1436,14 +1458,14 @@ class EDIDashboard {
 
     // Debug method for stock integration
     debugStockIntegration() {
-        console.log('🔍 STOCK INTEGRATION DEBUG:');
+        console.log('🔍 FIXED: STOCK INTEGRATION DEBUG:');
         console.log('📦 Material Stocks:', this.materialStocks);
         console.log('📊 Stock Calculations:', this.stockCalculations);
         
         // Test each product group
         Object.keys(this.productGroups).forEach(groupKey => {
             const group = this.productGroups[groupKey];
-            console.log(`\n🔍 Group: ${group.name} (${groupKey})`);
+            console.log(`\n🔍 FIXED: Group: ${group.name} (${groupKey})`);
             
             const stockData = this.materialStocks[groupKey];
             const calculations = this.stockCalculations[groupKey];
@@ -1462,20 +1484,20 @@ class EDIDashboard {
     }
 
     debugForecastData() {
-        console.log('🔍 DASHBOARD FORECAST DEBUG INFORMATION:');
+        console.log('🔍 FIXED: DASHBOARD FORECAST DEBUG INFORMATION:');
         console.log('📊 Current forecast data object:', this.forecastData);
         console.log('📊 Number of forecast entries:', Object.keys(this.forecastData).length);
         
         // Show all forecast keys with values and types
         Object.keys(this.forecastData).forEach(key => {
             const value = this.forecastData[key];
-            console.log(`🔍 Forecast entry: ${key} = ${value} (type: ${typeof value}, valid: ${!isNaN(parseFloat(value)) && parseFloat(value) > 0})`);
+            console.log(`🔍 FIXED: Forecast entry: ${key} = ${value} (type: ${typeof value}, valid: ${!isNaN(parseFloat(value)) && parseFloat(value) > 0})`);
         });
         
         // Generate expected keys for comparison
         const now = new Date();
         
-        console.log('🔍 Expected forecast keys for next 6 months:');
+        console.log('🔍 FIXED: Expected forecast keys for next 6 months:');
         for (let i = 0; i < 6; i++) {
             const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
             const monthKey = `${String(date.getMonth() + 1).padStart(2, '0')}/01`;
@@ -1485,19 +1507,19 @@ class EDIDashboard {
                 const hasData = this.forecastData.hasOwnProperty(expectedKey);
                 const value = this.forecastData[expectedKey] || 0;
                 const isValid = !isNaN(parseFloat(value)) && parseFloat(value) > 0;
-                console.log(`🔍 ${expectedKey}: ${hasData ? (isValid ? 'VALID' : 'INVALID') : 'MISSING'} (value: ${value})`);
+                console.log(`🔍 FIXED: ${expectedKey}: ${hasData ? (isValid ? 'VALID' : 'INVALID') : 'MISSING'} (value: ${value})`);
             });
         }
         
         // Test chart generation for first product
-        console.log('🔍 Testing forecast bar generation for first product...');
+        console.log('🔍 FIXED: Testing forecast bar generation for first product...');
         if (this.DRAWING_NUMBER_ORDER.length > 0) {
             const testProduct = this.DRAWING_NUMBER_ORDER[0];
             const testData = this.ediData.filter(order => order.drawing_number === testProduct);
             const testFutureOrders = this.getFutureOrders(testData);
             const testChartData = this.groupOrdersByDate(testFutureOrders);
             const testForecastBars = this.getForecastBarsForChart(testProduct, testChartData);
-            console.log(`🔍 Generated ${testForecastBars.length} forecast bars for ${testProduct}`);
+            console.log(`🔍 FIXED: Generated ${testForecastBars.length} forecast bars for ${testProduct}`);
         }
     }
 
@@ -1722,7 +1744,7 @@ class EDIDashboard {
 
     async initialize() {
         try {
-            console.log('🚀 Initializing Enhanced EDI Dashboard...');
+            console.log('🚀 FIXED: Initializing Enhanced EDI Dashboard...');
             
             // Load user authentication info
             await this.loadUserInfo();
@@ -1742,7 +1764,7 @@ class EDIDashboard {
                 this.loadData();
             }, 300000);
             
-            console.log('✅ Enhanced Dashboard initialized successfully');
+            console.log('✅ FIXED: Enhanced Dashboard initialized successfully');
         } catch (error) {
             console.error('❌ Failed to initialize dashboard:', error);
             this.showMessage('Failed to initialize dashboard', 'error');
@@ -1787,26 +1809,26 @@ window.exportToJSON = function() {
 
 // Enhanced debug testing functions
 window.testForecastDebug = function() {
-    console.log('🧪 Running forecast debug test...');
+    console.log('🧪 FIXED: Running forecast debug test...');
     ediDashboard.debugForecastData();
 };
 
 window.testForecastIntegrity = function() {
-    console.log('🧪 Running forecast integrity test...');
+    console.log('🧪 FIXED: Running forecast integrity test...');
     ediDashboard.verifyForecastDataIntegrity();
 };
 
 window.testForceRefreshCharts = function() {
-    console.log('🧪 Force refreshing all charts...');
+    console.log('🧪 FIXED: Force refreshing all charts...');
     ediDashboard.updateAllProductCharts();
 };
 
 window.testForecastAPI = async function() {
-    console.log('🧪 Testing forecast API directly...');
+    console.log('🧪 FIXED: Testing forecast API directly...');
     try {
         const response = await fetch('/api/forecasts');
         const data = await response.json();
-        console.log('📊 Raw API response:', data);
+        console.log('📊 FIXED: Raw API response:', data);
         return data;
     } catch (error) {
         console.error('❌ API test failed:', error);
@@ -1818,7 +1840,7 @@ window.testSessionDebug = async function() {
     try {
         const response = await fetch('/api/user-info');
         const data = await response.json();
-        console.log('🔍 Session debug - User info:', data);
+        console.log('🔍 FIXED: Session debug - User info:', data);
         return data;
     } catch (error) {
         console.log('❌ Session debug failed:', error);
@@ -1827,7 +1849,7 @@ window.testSessionDebug = async function() {
 };
 
 window.testStockIntegration = function() {
-    console.log('🧪 Testing stock integration...');
+    console.log('🧪 FIXED: Testing stock integration...');
     ediDashboard.debugStockIntegration();
 };
 

@@ -564,7 +564,7 @@
                 <span id="userDisplay">Loading...</span>
             </div>
             <h1>📦 Material Stock Management</h1>
-            <p>Track and manage material inventory for production planning</p>
+            <p>FIXED: Track and manage material inventory with split product groups for precise production planning</p>
         </div>
 
         <!-- Navigation Bar -->
@@ -612,7 +612,7 @@
 
             <!-- Chart Integration Notice -->
             <div class="chart-note">
-                📊 <strong>Dashboard Integration:</strong> Stock calculations automatically update dashboard charts. 
+                📊 <strong>FIXED Dashboard Integration:</strong> Stock calculations automatically update dashboard charts with separated Middle Frame A (PP4166-4731P002) and Middle Frame B (PP4166-7106P001, PP4166-7106P003) groups. 
                 Bars become transparent (outline only) when material stock is insufficient for that delivery date.
                 Charts show proper stacking priority: OK status (bottom) → Comments (middle) → No status (top).
             </div>
@@ -640,7 +640,7 @@
                 </div>
             </div>
 
-            <!-- Material Stock Groups -->
+            <!-- FIXED: Updated Material Stock Groups - Split Middle Frame into A & B -->
             <div class="stock-groups">
                 <!-- Group 1: ｱｯﾊﾟﾌﾞﾚｰﾑ (Upper Frame) -->
                 <div class="stock-group">
@@ -736,24 +736,24 @@
                     </div>
                 </div>
 
-                <!-- Group 3: ﾐﾄﾞﾙﾌﾚｰﾑ (Middle Frame) -->
+                <!-- FIXED: Group 3A: ﾐﾄﾞﾙﾌﾚｰﾑ A (Middle Frame A - PP4166-4731P002 ONLY) -->
                 <div class="stock-group">
                     <div class="group-header">
                         <div>
-                            <div class="group-title">⚙️ ﾐﾄﾞﾙﾌﾚｰﾑ</div>
-                            <div style="font-size: 0.9rem; color: #6b7280; margin-top: 5px;">Middle Frame Components</div>
+                            <div class="group-title">⚙️ ﾐﾄﾞﾙﾌﾚｰﾑ A</div>
+                            <div style="font-size: 0.9rem; color: #6b7280; margin-top: 5px;">Middle Frame A Component</div>
                         </div>
                         <div class="group-icon">⚙️</div>
                     </div>
                     
                     <div class="stock-input-section">
-                        <label class="stock-input-label" for="stock-middle-frame">
+                        <label class="stock-input-label" for="stock-middle-frame-a">
                             Current Material Stock (pieces)
                         </label>
                         <input type="number" 
-                               id="stock-middle-frame" 
+                               id="stock-middle-frame-a" 
                                class="stock-input" 
-                               data-group="middle-frame"
+                               data-group="middle-frame-a"
                                placeholder="Enter stock quantity"
                                min="0"
                                onchange="updateStockCalculations()"
@@ -763,9 +763,9 @@
                     <div class="stock-info">
                         <div class="stock-current">
                             <span class="stock-current-label">Available After Consumption:</span>
-                            <span class="stock-current-value" id="available-middle-frame">-</span>
+                            <span class="stock-current-value" id="available-middle-frame-a">-</span>
                         </div>
-                        <div class="stock-status" id="status-middle-frame">
+                        <div class="stock-status" id="status-middle-frame-a">
                             Enter stock quantity to see consumption analysis
                         </div>
                     </div>
@@ -774,15 +774,54 @@
                         <h4>Products in this group:</h4>
                         <div class="product-item">
                             <span class="product-drawing">PP4166-4731P002</span>
-                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ</span>
+                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ A</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- FIXED: Group 3B: ﾐﾄﾞﾙﾌﾚｰﾑ B (Middle Frame B - PP4166-7106P001 & PP4166-7106P003) -->
+                <div class="stock-group">
+                    <div class="group-header">
+                        <div>
+                            <div class="group-title">🔩 ﾐﾄﾞﾙﾌﾚｰﾑ B</div>
+                            <div style="font-size: 0.9rem; color: #6b7280; margin-top: 5px;">Middle Frame B Components</div>
+                        </div>
+                        <div class="group-icon">🔩</div>
+                    </div>
+                    
+                    <div class="stock-input-section">
+                        <label class="stock-input-label" for="stock-middle-frame-b">
+                            Current Material Stock (pieces)
+                        </label>
+                        <input type="number" 
+                               id="stock-middle-frame-b" 
+                               class="stock-input" 
+                               data-group="middle-frame-b"
+                               placeholder="Enter stock quantity"
+                               min="0"
+                               onchange="updateStockCalculations()"
+                               oninput="markAsChanged(this)">
+                    </div>
+                    
+                    <div class="stock-info">
+                        <div class="stock-current">
+                            <span class="stock-current-label">Available After Consumption:</span>
+                            <span class="stock-current-value" id="available-middle-frame-b">-</span>
+                        </div>
+                        <div class="stock-status" id="status-middle-frame-b">
+                            Enter stock quantity to see consumption analysis
+                        </div>
+                    </div>
+                    
+                    <div class="product-list">
+                        <h4>Products in this group:</h4>
                         <div class="product-item">
                             <span class="product-drawing">PP4166-7106P001</span>
-                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ</span>
+                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ B</span>
                         </div>
                         <div class="product-item">
                             <span class="product-drawing">PP4166-7106P003</span>
-                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ</span>
+                            <span style="color: #6b7280;">ﾐﾄﾞﾙﾌﾚｰﾑ B</span>
                         </div>
                     </div>
                 </div>
@@ -790,7 +829,7 @@
 
             <!-- Detailed Calculation Display -->
             <div class="calculation-details" id="calculationDetails" style="display: none;">
-                <h3 style="margin-bottom: 25px; color: #1f2937; font-size: 1.3rem;">🧮 Detailed Stock Consumption Calculations</h3>
+                <h3 style="margin-bottom: 25px; color: #1f2937; font-size: 1.3rem;">🧮 FIXED: Detailed Stock Consumption Calculations with Split Groups</h3>
                 <div id="calculationContent">
                     <!-- Calculation details will be populated here -->
                 </div>
@@ -811,7 +850,7 @@
                 this.lastSaved = null;
                 this.calculationTimeout = null;
                 
-                // Product groups mapping
+                // FIXED: Updated product groups mapping - Split middle frame
                 this.productGroups = {
                     'upper-frame': {
                         name: 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
@@ -821,9 +860,13 @@
                         name: 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
                         products: ['PP4166-4726P003', 'PP4166-4726P004']
                     },
-                    'middle-frame': {
-                        name: 'ﾐﾄﾞﾙﾌﾚｰﾑ',
-                        products: ['PP4166-4731P002', 'PP4166-7106P001', 'PP4166-7106P003']
+                    'middle-frame-a': {
+                        name: 'ﾐﾄﾞﾙﾌﾚｰﾑ A',
+                        products: ['PP4166-4731P002']
+                    },
+                    'middle-frame-b': {
+                        name: 'ﾐﾄﾞﾙﾌﾚｰﾑ B',
+                        products: ['PP4166-7106P001', 'PP4166-7106P003']
                     }
                 };
             }
@@ -901,7 +944,7 @@
                     const response = await fetch('/api/edi-data');
                     if (response.ok) {
                         this.ediData = await response.json();
-                        console.log('📊 Loaded EDI data:', this.ediData.length, 'orders');
+                        console.log('📊 FIXED: Loaded EDI data:', this.ediData.length, 'orders');
                     }
                 } catch (error) {
                     console.error('Error loading EDI data:', error);
@@ -920,7 +963,7 @@
                             this.forecastData[key] = parseInt(forecast.quantity) || 0;
                         });
                         
-                        console.log('📈 Loaded forecast data:', Object.keys(this.forecastData).length, 'entries');
+                        console.log('📈 FIXED: Loaded forecast data:', Object.keys(this.forecastData).length, 'entries');
                     }
                 } catch (error) {
                     console.error('Error loading forecast data:', error);
@@ -944,7 +987,7 @@
                                     lastUpdated: stock.updated_at
                                 };
                             });
-                            console.log('📦 Loaded stock data from API:', this.stockData);
+                            console.log('📦 FIXED: Loaded stock data from API:', this.stockData);
                             stockDataLoaded = true;
                         }
                     } catch (apiError) {
@@ -962,7 +1005,7 @@
                                     this.stockData[key] = stockData[key];
                                 }
                             });
-                            console.log('📦 Loaded stock data from localStorage:', this.stockData);
+                            console.log('📦 FIXED: Loaded stock data from localStorage:', this.stockData);
                             stockDataLoaded = true;
                         }
                     }
@@ -987,7 +1030,7 @@
 
             // ============ ENHANCED STOCK CALCULATION METHODS ============
             calculateStockConsumption() {
-                console.log('🧮 Starting comprehensive stock consumption calculation...');
+                console.log('🧮 FIXED: Starting comprehensive stock consumption calculation with split groups...');
                 
                 this.stockCalculations = {};
                 
@@ -996,7 +1039,7 @@
                     const stockInput = document.getElementById(`stock-${groupKey}`);
                     const currentStock = parseInt(stockInput.value) || 0;
                     
-                    console.log(`📦 Calculating for ${group.name} with ${currentStock} stock`);
+                    console.log(`📦 FIXED: Calculating for ${group.name} with ${currentStock} stock`);
                     
                     // Get all orders and forecasts for this group
                     const consumption = this.getGroupConsumptionDetailed(group.products, currentStock);
@@ -1017,7 +1060,7 @@
                 // Save to localStorage for dashboard integration
                 this.saveStockCalculationsToLocal();
                 
-                console.log('✅ Stock calculations completed:', this.stockCalculations);
+                console.log('✅ FIXED: Stock calculations completed:', this.stockCalculations);
             }
 
             // Enhanced detailed consumption calculation
@@ -1028,13 +1071,17 @@
                 let warningCount = 0;
                 let insufficientCount = 0;
                 
-                // Collect all orders and forecasts with dates
+                // FIXED: Collect all orders and forecasts with dates
                 products.forEach(product => {
+                    console.log(`📦 FIXED: Processing orders and forecasts for ${product}...`);
+                    
                     // Add EDI orders (excluding "ok" status)
                     const orders = this.ediData.filter(order => 
                         order.drawing_number === product && 
                         (!order.status || order.status.toLowerCase().trim() !== 'ok')
                     );
+                    
+                    console.log(`📦 FIXED: Found ${orders.length} non-OK orders for ${product}`);
                     
                     orders.forEach(order => {
                         items.push({
@@ -1049,7 +1096,8 @@
                         });
                     });
                     
-                    // Add forecast data
+                    // FIXED: Add forecast data with enhanced logging
+                    let forecastsFound = 0;
                     Object.keys(this.forecastData).forEach(key => {
                         if (key.startsWith(product + '-')) {
                             const monthDate = key.split('-').slice(1).join('-');
@@ -1071,9 +1119,13 @@
                                     forecastKey: key,
                                     priority: 3
                                 });
+                                
+                                forecastsFound++;
                             }
                         }
                     });
+                    
+                    console.log(`📈 FIXED: Found ${forecastsFound} forecasts for ${product}`);
                 });
                 
                 // Sort by date chronologically
@@ -1082,6 +1134,8 @@
                     const dateB = this.parseDate(b.date);
                     return dateA - dateB;
                 });
+                
+                console.log(`📦 FIXED: Total items for group: ${items.length} (orders + forecasts)`);
                 
                 // Calculate consumption with detailed tracking
                 const calculations = [];
@@ -1113,7 +1167,7 @@
                     
                     calculations.push(calculation);
                     
-                    console.log(`📦 ${item.product} ${item.type} ${item.date}: ${beforeStock} → ${afterStock} (${sufficient ? 'SUFFICIENT' : partial ? 'PARTIAL' : 'INSUFFICIENT'})`);
+                    console.log(`📦 FIXED: ${item.product} ${item.type} ${item.date}: ${beforeStock} → ${afterStock} (${sufficient ? 'SUFFICIENT' : partial ? 'PARTIAL' : 'INSUFFICIENT'})`);
                 });
                 
                 return {
@@ -1233,7 +1287,7 @@
                     // Also save detailed calculations separately for dashboard
                     localStorage.setItem('stockCalculations', JSON.stringify(this.stockCalculations));
                     
-                    console.log('💾 Stock calculations saved to localStorage for dashboard integration');
+                    console.log('💾 FIXED: Stock calculations saved to localStorage for dashboard integration');
                     
                 } catch (error) {
                     console.error('❌ Error saving stock calculations:', error);
@@ -1248,7 +1302,7 @@
                 }
 
                 try {
-                    this.showMessage('Saving stock levels...', 'info');
+                    this.showMessage('Saving FIXED stock levels...', 'info');
                     
                     const stockData = {};
                     
@@ -1275,7 +1329,7 @@
                         
                         if (response.ok) {
                             const result = await response.json();
-                            this.showMessage(`✅ Stock levels saved to database: ${result.saved} groups updated`, 'success');
+                            this.showMessage(`✅ FIXED: Stock levels saved to database: ${result.saved} groups updated`, 'success');
                         } else {
                             throw new Error('API save failed');
                         }
@@ -1406,7 +1460,7 @@
                     
                     html += `
                         <div class="calculation-group">
-                            <h4>${calc.groupName} (Initial Stock: ${calc.currentStock.toLocaleString()})</h4>
+                            <h4>FIXED: ${calc.groupName} (Initial Stock: ${calc.currentStock.toLocaleString()})</h4>
                             ${calc.items.map(item => `
                                 <div class="calculation-item">
                                     <div>
@@ -1437,14 +1491,14 @@
                         const debugData = await response.json();
                         console.log('🔍 DEBUG: Raw database data:', debugData);
                         
-                        alert(`Debug Info:
+                        alert(`FIXED Debug Info:
 📊 Data source: ${debugData.source}
 📊 Total stock records: ${debugData.stockCount}
 📊 Total orders: ${debugData.orderCount}
 📊 Total forecasts: ${debugData.forecastCount}
 
+📦 Stock groups: 4 (split middle frame A & B)
 📊 Local stock calculations: ${Object.keys(this.stockCalculations).length} groups
-📊 Generated months: ${this.months ? this.months.length : 'undefined'}
 
 Check console for detailed logs.`);
                     } else {
@@ -1469,7 +1523,7 @@ Check console for detailed logs.`);
             // ============ INITIALIZATION ============
             async initialize() {
                 try {
-                    console.log('🚀 Initializing Enhanced Material Stock Manager...');
+                    console.log('🚀 FIXED: Initializing Enhanced Material Stock Manager with split groups...');
                     
                     this.showLoading(true);
                     
@@ -1499,7 +1553,7 @@ Check console for detailed logs.`);
                         }
                     });
                     
-                    console.log('✅ Enhanced Material Stock Manager initialized successfully');
+                    console.log('✅ FIXED: Enhanced Material Stock Manager initialized successfully with 4 separate groups');
                     
                 } catch (error) {
                     console.error('❌ Failed to initialize material stock manager:', error);
