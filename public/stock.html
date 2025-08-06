@@ -7,6 +7,8 @@
     
     <!-- External CSS -->
     <link rel="stylesheet" href="/css/dashboard-styles.css">
+    <!-- FIXED: Include auth utils before other scripts -->
+    <script src="/js/auth-utils.js"></script>
     <style>
         /* Enhanced material stock specific styles */
         .stock-groups {
@@ -564,7 +566,7 @@
                 <span id="userDisplay">Loading...</span>
             </div>
             <h1>📦 Material Stock Management</h1>
-            <p>FIXED: Track and manage material inventory with split product groups for precise production planning</p>
+            <p>FIXED: Track and manage material inventory with split product groups and enhanced session management</p>
         </div>
 
         <!-- Navigation Bar -->
@@ -837,7 +839,7 @@
         </div>
     </div>
 
-    <!-- Enhanced JavaScript -->
+    <!-- FIXED: Enhanced JavaScript with improved session management -->
     <script>
         class MaterialStockManager {
             constructor() {
@@ -849,6 +851,7 @@
                 this.stockCalculations = {};
                 this.lastSaved = null;
                 this.calculationTimeout = null;
+                this.authUtils = window.authUtils; // FIXED: Use enhanced auth utils
                 
                 // FIXED: Updated product groups mapping - Split middle frame
                 this.productGroups = {
@@ -871,27 +874,29 @@
                 };
             }
 
-            // ============ AUTHENTICATION METHODS ============
+            // ============ FIXED AUTHENTICATION METHODS ============
             async loadUserInfo() {
                 try {
-                    const response = await fetch('/api/user-info');
-                    if (response.ok) {
-                        const userInfo = await response.json();
+                    console.log('🔍 FIXED: Loading user info for stock page...');
+                    
+                    const userInfo = await this.authUtils.checkAuthentication();
+                    
+                    if (userInfo) {
                         this.currentUser = userInfo;
                         this.userPermissions = userInfo.permissions;
                         
                         this.updateUIForPermissions();
                         this.updateUserDisplay(userInfo);
                         
+                        console.log('✅ FIXED: User authentication successful for stock');
                         return userInfo;
                     } else {
-                        console.log('❌ User not authenticated, redirecting to login');
-                        window.location.href = '/';
+                        console.log('❌ FIXED: Authentication failed for stock page');
                         return null;
                     }
                 } catch (error) {
-                    console.error('Error loading user info:', error);
-                    this.showMessage('Failed to load user information', 'error');
+                    console.error('❌ FIXED: Error loading user info:', error);
+                    this.showMessage('Session error. Please log in again.', 'error');
                     return null;
                 }
             }
@@ -938,22 +943,28 @@
                 }
             }
 
-            // ============ DATA LOADING METHODS ============
+            // ============ FIXED DATA LOADING METHODS ============
             async loadEDIData() {
                 try {
-                    const response = await fetch('/api/edi-data');
+                    console.log('📊 FIXED: Loading EDI data with authentication...');
+                    
+                    // FIXED: Use authenticated request
+                    const response = await this.authUtils.makeAuthenticatedRequest('/api/edi-data');
                     if (response.ok) {
                         this.ediData = await response.json();
                         console.log('📊 FIXED: Loaded EDI data:', this.ediData.length, 'orders');
                     }
                 } catch (error) {
-                    console.error('Error loading EDI data:', error);
+                    console.error('❌ FIXED: Error loading EDI data:', error);
                 }
             }
 
             async loadForecastData() {
                 try {
-                    const response = await fetch('/api/forecasts');
+                    console.log('📈 FIXED: Loading forecast data with authentication...');
+                    
+                    // FIXED: Use authenticated request
+                    const response = await this.authUtils.makeAuthenticatedRequest('/api/forecasts');
                     if (response.ok) {
                         const forecasts = await response.json();
                         this.forecastData = {};
@@ -966,7 +977,7 @@
                         console.log('📈 FIXED: Loaded forecast data:', Object.keys(this.forecastData).length, 'entries');
                     }
                 } catch (error) {
-                    console.error('Error loading forecast data:', error);
+                    console.error('❌ FIXED: Error loading forecast data:', error);
                 }
             }
 
@@ -974,9 +985,11 @@
                 try {
                     let stockDataLoaded = false;
                     
-                    // Try to load from API first
+                    // Try to load from API first using authenticated request
                     try {
-                        const response = await fetch('/api/material-stocks');
+                        console.log('📦 FIXED: Loading stock data with authentication...');
+                        
+                        const response = await this.authUtils.makeAuthenticatedRequest('/api/material-stocks');
                         if (response.ok) {
                             const stockData = await response.json();
                             this.stockData = {};
@@ -991,7 +1004,7 @@
                             stockDataLoaded = true;
                         }
                     } catch (apiError) {
-                        console.warn('⚠️ API load failed, trying localStorage:', apiError);
+                        console.warn('⚠️ FIXED: API load failed, trying localStorage:', apiError);
                     }
                     
                     // Fallback to localStorage if API failed
@@ -1024,7 +1037,7 @@
                         this.updateLastSavedDisplay();
                     }
                 } catch (error) {
-                    console.error('Error loading stock data:', error);
+                    console.error('❌ FIXED: Error loading stock data:', error);
                 }
             }
 
@@ -1290,11 +1303,11 @@
                     console.log('💾 FIXED: Stock calculations saved to localStorage for dashboard integration');
                     
                 } catch (error) {
-                    console.error('❌ Error saving stock calculations:', error);
+                    console.error('❌ FIXED: Error saving stock calculations:', error);
                 }
             }
 
-            // ============ SAVE/LOAD METHODS ============
+            // ============ FIXED SAVE/LOAD METHODS ============
             async saveAllStocks() {
                 if (!this.userPermissions.canEdit) {
                     this.showMessage('You do not have permission to save stock data', 'error');
@@ -1303,6 +1316,7 @@
 
                 try {
                     this.showMessage('Saving FIXED stock levels...', 'info');
+                    console.log('💾 FIXED: Saving stock levels with authentication...');
                     
                     const stockData = {};
                     
@@ -1317,9 +1331,9 @@
                         };
                     });
                     
-                    // Save to API if available
+                    // Save to API if available using authenticated request
                     try {
-                        const response = await fetch('/api/material-stocks', {
+                        const response = await this.authUtils.makeAuthenticatedRequest('/api/material-stocks', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1334,7 +1348,7 @@
                             throw new Error('API save failed');
                         }
                     } catch (apiError) {
-                        console.warn('API save failed, using localStorage fallback:', apiError);
+                        console.warn('⚠️ FIXED: API save failed, using localStorage fallback:', apiError);
                         this.showMessage('⚠️ Saved locally (database unavailable)', 'warning');
                     }
                     
@@ -1354,8 +1368,13 @@
                     this.notifyOtherWindows('STOCK_UPDATED');
                     
                 } catch (error) {
-                    console.error('Error saving stock data:', error);
-                    this.showMessage('Failed to save stock data: ' + error.message, 'error');
+                    console.error('❌ FIXED: Error saving stock data:', error);
+                    
+                    if (error.message.includes('Authentication required') || error.message.includes('Session expired')) {
+                        this.showMessage('Session expired. Please log in again.', 'error');
+                    } else {
+                        this.showMessage('Failed to save stock data: ' + error.message, 'error');
+                    }
                 }
             }
 
@@ -1486,10 +1505,11 @@
 
             async showDebugInfo() {
                 try {
-                    const response = await fetch('/api/debug/stocks');
+                    // FIXED: Use authenticated request
+                    const response = await this.authUtils.makeAuthenticatedRequest('/api/debug/stocks');
                     if (response.ok) {
                         const debugData = await response.json();
-                        console.log('🔍 DEBUG: Raw database data:', debugData);
+                        console.log('🔍 FIXED: DEBUG: Raw database data:', debugData);
                         
                         alert(`FIXED Debug Info:
 📊 Data source: ${debugData.source}
@@ -1505,59 +1525,76 @@ Check console for detailed logs.`);
                         alert('Failed to fetch debug info');
                     }
                 } catch (error) {
-                    console.error('Debug error:', error);
+                    console.error('❌ FIXED: Debug error:', error);
                     alert('Debug error: ' + error.message);
                 }
             }
 
+            // FIXED: Logout using auth utils
             async logout() {
                 try {
-                    await fetch('/api/logout', { method: 'POST' });
-                    window.location.href = '/';
+                    console.log('🚪 FIXED: Logout initiated from stock page...');
+                    const result = await this.authUtils.logout();
+                    if (result.success) {
+                        this.authUtils.triggerCrossTabLogout();
+                    }
                 } catch (error) {
-                    console.error('Logout error:', error);
-                    window.location.href = '/';
+                    console.error('❌ FIXED: Logout error:', error);
+                    // Force redirect even if logout fails
+                    this.authUtils.redirectToLogin();
                 }
             }
 
-            // ============ INITIALIZATION ============
+            // ============ FIXED INITIALIZATION ============
             async initialize() {
                 try {
-                    console.log('🚀 FIXED: Initializing Enhanced Material Stock Manager with split groups...');
+                    console.log('🚀 FIXED: Initializing Enhanced Material Stock Manager with session management...');
                     
                     this.showLoading(true);
                     
+                    // FIXED: Wait for auth utils to be ready if not already initialized
+                    if (!this.authUtils || !this.authUtils.userInfo) {
+                        console.log('🔄 FIXED: Waiting for auth utils initialization...');
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                    
                     await this.loadUserInfo();
-                    await this.loadEDIData();
-                    await this.loadForecastData();
-                    await this.loadStockData();
                     
-                    // Setup real-time calculation
-                    this.setupRealTimeCalculation();
-                    
-                    // Initial calculations
-                    this.calculateStockConsumption();
-                    
-                    // Listen for dashboard updates
-                    window.addEventListener('storage', (event) => {
-                        if (event.key === 'crossWindowMessage' && event.newValue) {
-                            try {
-                                const message = JSON.parse(event.newValue);
-                                if (message.type === 'FORECAST_UPDATED' || message.type === 'EDI_UPDATED') {
-                                    console.log('📡 Received update notification from dashboard');
-                                    this.initialize(); // Refresh data
+                    // Only proceed if we have valid authentication
+                    if (this.currentUser) {
+                        await this.loadEDIData();
+                        await this.loadForecastData();
+                        await this.loadStockData();
+                        
+                        // Setup real-time calculation
+                        this.setupRealTimeCalculation();
+                        
+                        // Initial calculations
+                        this.calculateStockConsumption();
+                        
+                        // Listen for dashboard updates
+                        window.addEventListener('storage', (event) => {
+                            if (event.key === 'crossWindowMessage' && event.newValue) {
+                                try {
+                                    const message = JSON.parse(event.newValue);
+                                    if (message.type === 'FORECAST_UPDATED' || message.type === 'EDI_UPDATED') {
+                                        console.log('📡 FIXED: Received update notification from dashboard');
+                                        this.initialize(); // Refresh data
+                                    }
+                                } catch (error) {
+                                    console.warn('Could not parse cross-window message:', error);
                                 }
-                            } catch (error) {
-                                console.warn('Could not parse cross-window message:', error);
                             }
-                        }
-                    });
-                    
-                    console.log('✅ FIXED: Enhanced Material Stock Manager initialized successfully with 4 separate groups');
+                        });
+                        
+                        console.log('✅ FIXED: Enhanced Material Stock Manager initialized successfully with 4 separate groups');
+                    } else {
+                        console.log('❌ FIXED: Stock initialization failed - no valid authentication');
+                    }
                     
                 } catch (error) {
-                    console.error('❌ Failed to initialize material stock manager:', error);
-                    this.showMessage('Failed to initialize material stock manager', 'error');
+                    console.error('❌ FIXED: Failed to initialize material stock manager:', error);
+                    this.showMessage('Failed to initialize material stock manager. Please refresh the page.', 'error');
                 } finally {
                     this.showLoading(false);
                 }
@@ -1596,9 +1633,12 @@ Check console for detailed logs.`);
             materialStockManager.logout();
         }
 
-        // Initialize when DOM is ready
+        // FIXED: Initialize when DOM is ready with better timing
         document.addEventListener('DOMContentLoaded', function() {
-            materialStockManager.initialize();
+            // Add a small delay to ensure auth utils are ready
+            setTimeout(() => {
+                materialStockManager.initialize();
+            }, 500);
         });
     </script>
 </body>

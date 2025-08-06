@@ -1,4 +1,4 @@
-// dashboard-app.js - FIXED: Enhanced EDI Dashboard with Corrected Product Groups and Stock Calculation
+// dashboard-app.js - FIXED: Enhanced EDI Dashboard with improved session management
 
 class EDIDashboard {
     constructor() {
@@ -9,6 +9,7 @@ class EDIDashboard {
         this.currentView = 'main';
         this.userPermissions = { canEdit: false, canView: true };
         this.currentUser = null;
+        this.authUtils = window.authUtils; // Use the enhanced auth utils
         
         // Drawing Number order
         this.DRAWING_NUMBER_ORDER = [
@@ -53,12 +54,15 @@ class EDIDashboard {
         };
     }
 
-    // ============ AUTHENTICATION METHODS ============
+    // ============ FIXED AUTHENTICATION METHODS ============
     async loadUserInfo() {
         try {
-            const response = await fetch('/api/user-info');
-            if (response.ok) {
-                const userInfo = await response.json();
+            console.log('🔍 FIXED: Loading user info via auth utils...');
+            
+            // Use the enhanced auth utils for better session management
+            const userInfo = await this.authUtils.checkAuthentication();
+            
+            if (userInfo) {
                 this.currentUser = userInfo;
                 this.userPermissions = userInfo.permissions;
                 
@@ -68,15 +72,16 @@ class EDIDashboard {
                 // Update user display
                 this.updateUserDisplay(userInfo);
                 
+                console.log('✅ FIXED: User info loaded successfully');
                 return userInfo;
             } else {
-                // User not logged in, redirect to login
-                window.location.href = '/';
+                console.log('❌ FIXED: No valid session found');
+                // Auth utils will handle redirect
                 return null;
             }
         } catch (error) {
-            console.error('Error loading user info:', error);
-            this.showMessage('Failed to load user information', 'error');
+            console.error('❌ FIXED: Error loading user info:', error);
+            this.showMessage('Session error. Please log in again.', 'error');
             return null;
         }
     }
@@ -138,28 +143,26 @@ class EDIDashboard {
 
     async logout() {
         try {
-            await fetch('/api/logout', { method: 'POST' });
-            window.location.href = '/';
+            console.log('🚪 FIXED: Logout initiated via auth utils...');
+            const result = await this.authUtils.logout();
+            if (result.success) {
+                this.authUtils.triggerCrossTabLogout();
+            }
         } catch (error) {
-            console.error('Logout error:', error);
-            window.location.href = '/';
+            console.error('❌ FIXED: Logout error:', error);
+            // Force redirect even if logout fails
+            this.authUtils.redirectToLogin();
         }
     }
 
-    // ============ DATA MANAGEMENT METHODS ============
+    // ============ FIXED DATA MANAGEMENT METHODS ============
     async loadData() {
         try {
             this.showLoading(true);
+            console.log('📊 FIXED: Loading EDI data with auth check...');
             
-            const response = await fetch('/api/edi-data');
-            
-            if (response.status === 401) {
-                this.showMessage('Session expired. Please log in again.', 'error');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 2000);
-                return;
-            }
+            // FIXED: Use authenticated request method
+            const response = await this.authUtils.makeAuthenticatedRequest('/api/edi-data');
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -181,9 +184,17 @@ class EDIDashboard {
             // Notify other windows about data update
             this.notifyOtherWindows('EDI_UPDATED');
             
+            console.log('✅ FIXED: Data loaded successfully');
+            
         } catch (error) {
-            this.showMessage('Failed to load data: ' + error.message, 'error');
-            console.error('Error loading data:', error);
+            console.error('❌ FIXED: Error loading data:', error);
+            
+            if (error.message.includes('Authentication required') || error.message.includes('Session expired')) {
+                this.showMessage('Session expired. Please log in again.', 'error');
+                // Auth utils will handle redirect
+            } else {
+                this.showMessage('Failed to load data: ' + error.message, 'error');
+            }
         } finally {
             this.showLoading(false);
         }
@@ -192,13 +203,15 @@ class EDIDashboard {
     // Enhanced forecast data loading with better debugging and type conversion
     async loadForecastData() {
         try {
-            console.log('📈 Dashboard: Starting forecast data load...');
-            const response = await fetch('/api/forecasts');
+            console.log('📈 FIXED: Dashboard - Starting forecast data load with auth...');
+            
+            // FIXED: Use authenticated request
+            const response = await this.authUtils.makeAuthenticatedRequest('/api/forecasts');
             
             if (response.ok) {
                 const forecasts = await response.json();
-                console.log('📈 Dashboard: Raw forecast data from API:', forecasts);
-                console.log('📈 Dashboard: Forecast count:', forecasts.length);
+                console.log('📈 FIXED: Raw forecast data from API:', forecasts);
+                console.log('📈 FIXED: Forecast count:', forecasts.length);
                 
                 // Convert array to object for easier lookup with enhanced debugging
                 this.forecastData = {};
@@ -225,22 +238,22 @@ class EDIDashboard {
                     }
                     
                     this.forecastData[key] = quantity;
-                    console.log(`📈 Dashboard: Loaded forecast ${index + 1}: ${key} = ${quantity} (original: ${forecast.quantity}, type: ${typeof quantity})`);
+                    console.log(`📈 FIXED: Loaded forecast ${index + 1}: ${key} = ${quantity} (original: ${forecast.quantity}, type: ${typeof quantity})`);
                 });
                 
-                console.log('📈 Dashboard: Processed forecast data keys:', Object.keys(this.forecastData));
-                console.log('📈 Dashboard: Processed forecast data values:', this.forecastData);
-                console.log('📈 Dashboard: Total forecast entries:', Object.keys(this.forecastData).length);
-                console.log('✅ Forecast data loaded successfully');
+                console.log('📈 FIXED: Processed forecast data keys:', Object.keys(this.forecastData));
+                console.log('📈 FIXED: Processed forecast data values:', this.forecastData);
+                console.log('📈 FIXED: Total forecast entries:', Object.keys(this.forecastData).length);
+                console.log('✅ FIXED: Forecast data loaded successfully');
                 
                 // Immediate verification - check if we have data for current products
                 this.verifyForecastDataIntegrity();
                 
             } else {
-                console.warn('⚠️ Failed to load forecast data:', response.status, response.statusText);
+                console.warn('⚠️ FIXED: Failed to load forecast data:', response.status, response.statusText);
             }
         } catch (error) {
-            console.error('❌ Error loading forecast data:', error);
+            console.error('❌ FIXED: Error loading forecast data:', error);
             // Don't show error message as forecast is optional
         }
     }
@@ -248,13 +261,13 @@ class EDIDashboard {
     // Enhanced material stock data loading with localStorage fallback
     async loadMaterialStockData() {
         try {
-            console.log('📦 Dashboard: Loading material stock data...');
+            console.log('📦 FIXED: Dashboard - Loading material stock data with auth...');
             
             let stockDataLoaded = false;
             
-            // Try to load from API first
+            // Try to load from API first using authenticated request
             try {
-                const response = await fetch('/api/material-stocks');
+                const response = await this.authUtils.makeAuthenticatedRequest('/api/material-stocks');
                 if (response.ok) {
                     const stockData = await response.json();
                     // Convert API data to the format we need
@@ -266,11 +279,11 @@ class EDIDashboard {
                             lastUpdated: stock.updated_at
                         };
                     });
-                    console.log('📦 Loaded stock data from API:', this.materialStocks);
+                    console.log('📦 FIXED: Loaded stock data from API:', this.materialStocks);
                     stockDataLoaded = true;
                 }
             } catch (apiError) {
-                console.warn('⚠️ API load failed, trying localStorage:', apiError);
+                console.warn('⚠️ FIXED: API load failed, trying localStorage:', apiError);
             }
             
             // Fallback to localStorage if API failed
@@ -285,11 +298,11 @@ class EDIDashboard {
                                 this.materialStocks[key] = stockData[key];
                             }
                         });
-                        console.log('📦 Loaded stock data from localStorage:', this.materialStocks);
+                        console.log('📦 FIXED: Loaded stock data from localStorage:', this.materialStocks);
                         stockDataLoaded = true;
                     }
                 } catch (localError) {
-                    console.error('❌ localStorage load also failed:', localError);
+                    console.error('❌ FIXED: localStorage load also failed:', localError);
                 }
             }
             
@@ -298,21 +311,21 @@ class EDIDashboard {
                 const savedCalculations = localStorage.getItem('stockCalculations');
                 if (savedCalculations) {
                     this.stockCalculations = JSON.parse(savedCalculations);
-                    console.log('📦 Loaded detailed stock calculations from localStorage');
+                    console.log('📦 FIXED: Loaded detailed stock calculations from localStorage');
                 }
             } catch (calcError) {
-                console.warn('⚠️ Could not load stock calculations:', calcError);
+                console.warn('⚠️ FIXED: Could not load stock calculations:', calcError);
             }
             
             // Calculate stock consumption after loading
             if (stockDataLoaded) {
                 this.calculateMaterialStockConsumption();
             } else {
-                console.warn('⚠️ No stock data available - charts will show all items as sufficient');
+                console.warn('⚠️ FIXED: No stock data available - charts will show all items as sufficient');
             }
             
         } catch (error) {
-            console.error('❌ Error loading material stock data:', error);
+            console.error('❌ FIXED: Error loading material stock data:', error);
             // Initialize empty stock data to prevent errors
             this.materialStocks = {};
             this.stockCalculations = {};
@@ -321,7 +334,7 @@ class EDIDashboard {
 
     // FIXED: Enhanced stock consumption calculation with proper forecast inclusion
     async calculateMaterialStockConsumption() {
-        console.log('🧮 Dashboard: FIXED - Calculating comprehensive material stock consumption...');
+        console.log('🧮 FIXED: Dashboard - Calculating comprehensive material stock consumption...');
         
         // Initialize if not exists
         if (!this.stockCalculations) {
@@ -343,7 +356,7 @@ class EDIDashboard {
                     groupName: group.name,
                     allItemsInsufficient: true
                 };
-                console.log(`⚠️ No stock for ${group.name} - all items will be insufficient`);
+                console.log(`⚠️ FIXED: No stock for ${group.name} - all items will be insufficient`);
                 return;
             }
             
@@ -359,7 +372,7 @@ class EDIDashboard {
             
             console.log(`📦 FIXED: Found ${allItems.length} items for ${group.name} (${allItems.filter(i => i.type === 'order').length} orders + ${allItems.filter(i => i.type === 'forecast').length} forecasts)`);
             if (allItems.filter(i => i.type === 'forecast').length > 0) {
-                console.log(`📈 Forecast items included in stock calculation for ${group.name}:`, 
+                console.log(`📈 FIXED: Forecast items included in stock calculation for ${group.name}:`, 
                     allItems.filter(i => i.type === 'forecast').map(i => `${i.date}: ${i.quantity}`));
             }
             allItems.forEach((item, index) => {
@@ -394,7 +407,7 @@ class EDIDashboard {
                     shortfall: sufficient ? 0 : item.quantity - beforeStock
                 };
                 
-                console.log(`📦 ${group.name}: Item ${index + 1} (${itemKey}) - Stock: ${beforeStock} → ${afterStock}, Sufficient: ${sufficient}`);
+                console.log(`📦 FIXED: ${group.name}: Item ${index + 1} (${itemKey}) - Stock: ${beforeStock} → ${afterStock}, Sufficient: ${sufficient}`);
             });
             
             this.stockCalculations[groupKey] = {
@@ -412,7 +425,7 @@ class EDIDashboard {
         try {
             localStorage.setItem('dashboardStockCalculations', JSON.stringify(this.stockCalculations));
         } catch (error) {
-            console.warn('⚠️ Could not save calculations to localStorage:', error);
+            console.warn('⚠️ FIXED: Could not save calculations to localStorage:', error);
         }
     }
 
@@ -446,7 +459,7 @@ class EDIDashboard {
             
             // FIXED: Add forecast data as future orders with enhanced debugging
             console.log(`🔍 FIXED: Checking forecasts for ${product}...`);
-            console.log(`📊 Available forecast keys:`, Object.keys(this.forecastData));
+            console.log(`📊 FIXED: Available forecast keys:`, Object.keys(this.forecastData));
             
             let forecastsFound = 0;
             Object.keys(this.forecastData).forEach(key => {
@@ -511,19 +524,19 @@ class EDIDashboard {
             });
             
             if (!groupKey) {
-                console.warn(`⚠️ Product ${drawingNumber} not found in any group`);
+                console.warn(`⚠️ FIXED: Product ${drawingNumber} not found in any group`);
                 return true; // Default to sufficient if product not found
             }
             
             const calculations = this.stockCalculations[groupKey];
             if (!calculations) {
-                console.warn(`⚠️ No calculations found for group ${groupKey}`);
+                console.warn(`⚠️ FIXED: No calculations found for group ${groupKey}`);
                 return true; // Default to sufficient if no calculations
             }
             
             // If no stock at all, everything is insufficient
             if (calculations.allItemsInsufficient || calculations.currentStock <= 0) {
-                console.log(`🔴 No stock available for ${groupKey} - marking as insufficient`);
+                console.log(`🔴 FIXED: No stock available for ${groupKey} - marking as insufficient`);
                 return false;
             }
             
@@ -545,16 +558,16 @@ class EDIDashboard {
             
             if (itemKey && calculations.itemAvailability[itemKey]) {
                 const result = calculations.itemAvailability[itemKey].sufficient;
-                console.log(`🔍 Stock check for ${itemKey}: ${result ? 'SUFFICIENT ✓' : 'INSUFFICIENT ✗'}`);
+                console.log(`🔍 FIXED: Stock check for ${itemKey}: ${result ? 'SUFFICIENT ✓' : 'INSUFFICIENT ✗'}`);
                 return result;
             }
             
-            console.warn(`⚠️ Item key ${itemKey} not found in availability calculations for ${groupKey}`);
-            console.log(`Available keys:`, Object.keys(calculations.itemAvailability || {}));
+            console.warn(`⚠️ FIXED: Item key ${itemKey} not found in availability calculations for ${groupKey}`);
+            console.log(`FIXED: Available keys:`, Object.keys(calculations.itemAvailability || {}));
             return true; // Default to sufficient if not found
             
         } catch (error) {
-            console.error('❌ Error checking stock sufficiency:', error);
+            console.error('❌ FIXED: Error checking stock sufficiency:', error);
             return true; // Default to sufficient on error
         }
     }
@@ -579,7 +592,8 @@ class EDIDashboard {
         try {
             this.showLoading(true);
             
-            const response = await fetch('/api/import-edi', {
+            // FIXED: Use authenticated request
+            const response = await this.authUtils.makeAuthenticatedRequest('/api/import-edi', {
                 method: 'POST',
                 body: formData
             });
@@ -601,7 +615,11 @@ class EDIDashboard {
                 this.showMessage(result.error || 'Import failed', 'error');
             }
         } catch (error) {
-            if (error.message.includes('403')) {
+            console.error('❌ FIXED: Import error:', error);
+            
+            if (error.message.includes('Authentication required') || error.message.includes('Session expired')) {
+                this.showMessage('Session expired. Please log in again.', 'error');
+            } else if (error.message.includes('403')) {
                 this.showMessage('You do not have permission to import data', 'error');
             } else {
                 this.showMessage('Import failed: ' + error.message, 'error');
@@ -621,7 +639,8 @@ class EDIDashboard {
         const status = input.value;
 
         try {
-            const response = await fetch(`/api/edi-data/${orderId}`, {
+            // FIXED: Use authenticated request
+            const response = await this.authUtils.makeAuthenticatedRequest(`/api/edi-data/${orderId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -647,7 +666,11 @@ class EDIDashboard {
                 this.showMessage(result.error || 'Failed to update status', 'error');
             }
         } catch (error) {
-            if (error.message.includes('403')) {
+            console.error('❌ FIXED: Save status error:', error);
+            
+            if (error.message.includes('Authentication required') || error.message.includes('Session expired')) {
+                this.showMessage('Session expired. Please log in again.', 'error');
+            } else if (error.message.includes('403')) {
                 this.showMessage('You do not have permission to save changes', 'error');
             } else {
                 this.showMessage('Failed to save status: ' + error.message, 'error');
@@ -672,7 +695,8 @@ class EDIDashboard {
             const status = input.value;
 
             try {
-                const response = await fetch(`/api/edi-data/${orderId}`, {
+                // FIXED: Use authenticated request
+                const response = await this.authUtils.makeAuthenticatedRequest(`/api/edi-data/${orderId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -691,6 +715,7 @@ class EDIDashboard {
                     errors++;
                 }
             } catch (error) {
+                console.error('❌ FIXED: Save all error:', error);
                 errors++;
             }
         }
@@ -710,15 +735,11 @@ class EDIDashboard {
     // ============ ENHANCED EXPORT FUNCTIONALITY ============
     async exportToCSV() {
         try {
-            console.log('📊 Starting CSV export...');
+            console.log('📊 FIXED: Starting CSV export with auth...');
             this.showMessage('Preparing CSV export...', 'info');
             
-            const response = await fetch('/api/export/csv', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            // FIXED: Use authenticated request
+            const response = await this.authUtils.makeAuthenticatedRequest('/api/export/csv');
             
             if (!response.ok) {
                 throw new Error(`Export failed: ${response.status}`);
@@ -744,25 +765,26 @@ class EDIDashboard {
             window.URL.revokeObjectURL(url);
             
             this.showMessage('CSV file downloaded successfully! Opens in Excel.', 'success');
-            console.log('✅ CSV export completed');
+            console.log('✅ FIXED: CSV export completed');
             
         } catch (error) {
-            console.error('❌ CSV export error:', error);
-            this.showMessage('Failed to export CSV file: ' + error.message, 'error');
+            console.error('❌ FIXED: CSV export error:', error);
+            
+            if (error.message.includes('Authentication required') || error.message.includes('Session expired')) {
+                this.showMessage('Session expired. Please log in again.', 'error');
+            } else {
+                this.showMessage('Failed to export CSV file: ' + error.message, 'error');
+            }
         }
     }
 
     async exportToJSON() {
         try {
-            console.log('📊 Starting JSON export...');
+            console.log('📊 FIXED: Starting JSON export with auth...');
             this.showMessage('Preparing JSON export...', 'info');
             
-            const response = await fetch('/api/export/json', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            // FIXED: Use authenticated request
+            const response = await this.authUtils.makeAuthenticatedRequest('/api/export/json');
             
             if (!response.ok) {
                 throw new Error(`Export failed: ${response.status}`);
@@ -788,11 +810,16 @@ class EDIDashboard {
             window.URL.revokeObjectURL(url);
             
             this.showMessage('JSON file downloaded successfully!', 'success');
-            console.log('✅ JSON export completed');
+            console.log('✅ FIXED: JSON export completed');
             
         } catch (error) {
-            console.error('❌ JSON export error:', error);
-            this.showMessage('Failed to export JSON file: ' + error.message, 'error');
+            console.error('❌ FIXED: JSON export error:', error);
+            
+            if (error.message.includes('Authentication required') || error.message.includes('Session expired')) {
+                this.showMessage('Session expired. Please log in again.', 'error');
+            } else {
+                this.showMessage('Failed to export JSON file: ' + error.message, 'error');
+            }
         }
     }
 
@@ -1048,7 +1075,7 @@ class EDIDashboard {
                 const hasStock = this.isItemStockSufficient(drawingNumber, forecastItem);
                 
                 // Debug logging for forecast stock calculation
-                console.log(`📊 Forecast bar: ${d.displayDate}, Quantity: ${d.quantity}, Has Stock: ${hasStock}`);
+                console.log(`📊 FIXED: Forecast bar: ${d.displayDate}, Quantity: ${d.quantity}, Has Stock: ${hasStock}`);
                 
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('x', x);
@@ -1217,7 +1244,7 @@ class EDIDashboard {
         titleText.setAttribute('text-anchor', 'middle');
         titleText.setAttribute('font-size', '10');
         titleText.setAttribute('fill', '#6b7280');
-        titleText.textContent = 'Delivery Schedule with Stock Analysis - Forecasts: Solid=Sufficient Stock, Dashed=Insufficient Stock';
+        titleText.textContent = 'FIXED: Delivery Schedule with Stock Analysis - Forecasts: Solid=Sufficient Stock, Dashed=Insufficient Stock';
         svg.appendChild(titleText);
         
         container.innerHTML = '';
@@ -1266,15 +1293,15 @@ class EDIDashboard {
     // Get forecast bars for chart with better date matching and type conversion
     getForecastBarsForChart(drawingNumber, existingData) {
         console.log(`📊 FIXED: Getting forecast bars for ${drawingNumber}`);
-        console.log(`📊 Available forecast data keys:`, Object.keys(this.forecastData));
-        console.log(`📊 Available forecast data:`, this.forecastData);
+        console.log(`📊 FIXED: Available forecast data keys:`, Object.keys(this.forecastData));
+        console.log(`📊 FIXED: Available forecast data:`, this.forecastData);
         
         const forecastBars = [];
         const now = new Date();
         
         // Get existing delivery dates to avoid overlap
         const existingDates = new Set(existingData.map(d => d.date));
-        console.log(`📊 Existing delivery dates:`, Array.from(existingDates));
+        console.log(`📊 FIXED: Existing delivery dates:`, Array.from(existingDates));
         
         // Generate 6 months from current month with consistent formatting
         for (let i = 0; i < 6; i++) {
@@ -1449,12 +1476,12 @@ class EDIDashboard {
             if (event.key === 'crossWindowMessage' && event.newValue) {
                 try {
                     const message = JSON.parse(event.newValue);
-                    console.log('📡 Received cross-window message:', message);
+                    console.log('📡 FIXED: Received cross-window message:', message);
                     
                     if (message.source !== 'dashboard') {
                         // Reload data if updated from another window
                         if (message.type === 'STOCK_UPDATED' || message.type === 'FORECAST_UPDATED') {
-                            console.log('🔄 Reloading data due to external update');
+                            console.log('🔄 FIXED: Reloading data due to external update');
                             this.loadData();
                         }
                     }
@@ -1753,30 +1780,43 @@ class EDIDashboard {
 
     async initialize() {
         try {
-            console.log('🚀 FIXED: Initializing Enhanced EDI Dashboard...');
+            console.log('🚀 FIXED: Initializing Enhanced EDI Dashboard with improved session management...');
+            
+            // FIXED: Wait for auth utils to be ready if not already initialized
+            if (!this.authUtils || !this.authUtils.userInfo) {
+                console.log('🔄 FIXED: Waiting for auth utils initialization...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
             
             // Load user authentication info
             await this.loadUserInfo();
             
-            // Load EDI data with stock integration
-            await this.loadData();
-            
-            // Initialize file and button handlers
-            this.initializeFileHandlers();
-            this.initializeButtonHandlers();
-            
-            // Setup cross-window communication
-            this.setupCrossWindowCommunication();
-            
-            // Set up auto-refresh every 5 minutes
-            setInterval(() => {
-                this.loadData();
-            }, 300000);
-            
-            console.log('✅ FIXED: Enhanced Dashboard initialized successfully');
+            // Only proceed if we have valid authentication
+            if (this.currentUser) {
+                // Load EDI data with stock integration
+                await this.loadData();
+                
+                // Initialize file and button handlers
+                this.initializeFileHandlers();
+                this.initializeButtonHandlers();
+                
+                // Setup cross-window communication
+                this.setupCrossWindowCommunication();
+                
+                // Set up auto-refresh every 5 minutes
+                setInterval(() => {
+                    if (document.visibilityState === 'visible' && this.currentUser) {
+                        this.loadData();
+                    }
+                }, 300000);
+                
+                console.log('✅ FIXED: Enhanced Dashboard initialized successfully with stable session management');
+            } else {
+                console.log('❌ FIXED: Dashboard initialization failed - no valid authentication');
+            }
         } catch (error) {
-            console.error('❌ Failed to initialize dashboard:', error);
-            this.showMessage('Failed to initialize dashboard', 'error');
+            console.error('❌ FIXED: Failed to initialize dashboard:', error);
+            this.showMessage('Failed to initialize dashboard. Please refresh the page.', 'error');
         }
     }
 }
@@ -1802,7 +1842,7 @@ window.exportToCSV = function() {
     if (window.ediDashboard) {
         window.ediDashboard.exportToCSV();
     } else {
-        console.error('❌ EDI Dashboard not found');
+        console.error('❌ FIXED: EDI Dashboard not found');
         alert('Export functionality not available');
     }
 };
@@ -1811,7 +1851,7 @@ window.exportToJSON = function() {
     if (window.ediDashboard) {
         window.ediDashboard.exportToJSON();
     } else {
-        console.error('❌ EDI Dashboard not found');
+        console.error('❌ FIXED: EDI Dashboard not found');
         alert('Export functionality not available');
     }
 };
@@ -1835,24 +1875,23 @@ window.testForceRefreshCharts = function() {
 window.testForecastAPI = async function() {
     console.log('🧪 FIXED: Testing forecast API directly...');
     try {
-        const response = await fetch('/api/forecasts');
+        const response = await window.authUtils.makeAuthenticatedRequest('/api/forecasts');
         const data = await response.json();
         console.log('📊 FIXED: Raw API response:', data);
         return data;
     } catch (error) {
-        console.error('❌ API test failed:', error);
+        console.error('❌ FIXED: API test failed:', error);
         return null;
     }
 };
 
 window.testSessionDebug = async function() {
     try {
-        const response = await fetch('/api/user-info');
-        const data = await response.json();
-        console.log('🔍 FIXED: Session debug - User info:', data);
-        return data;
+        const userInfo = await window.authUtils.checkAuthentication();
+        console.log('🔍 FIXED: Session debug - User info:', userInfo);
+        return userInfo;
     } catch (error) {
-        console.log('❌ Session debug failed:', error);
+        console.log('❌ FIXED: Session debug failed:', error);
         return null;
     }
 };
@@ -1865,7 +1904,10 @@ window.testStockIntegration = function() {
 // Make dashboard available globally
 window.ediDashboard = ediDashboard;
 
-// Initialize when DOM is ready
+// FIXED: Initialize when DOM is ready with better timing
 document.addEventListener('DOMContentLoaded', function() {
-    ediDashboard.initialize();
+    // Add a small delay to ensure auth utils are ready
+    setTimeout(() => {
+        ediDashboard.initialize();
+    }, 500);
 });
