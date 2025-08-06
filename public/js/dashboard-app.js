@@ -24,7 +24,7 @@ class EDIDashboard {
         // Product names mapping
         this.PRODUCT_NAMES = {
             'PP4166-4681P003': 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
-            'PP4166-4681P004': 'ｱｯﾊﾟﾌﾞﾞﾚｰﾑ',
+            'PP4166-4681P004': 'ｱｯﾊﾟﾌﾞﾚｰﾑ',
             'PP4166-4726P003': 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
             'PP4166-4726P004': 'ﾄｯﾌﾟﾌﾟﾚｰﾄ',
             'PP4166-4731P002': 'ﾐﾄﾞﾙﾌﾚｰﾑ A',
@@ -357,7 +357,11 @@ class EDIDashboard {
                 return dateA - dateB;
             });
             
-            console.log(`📦 FIXED: Found ${allItems.length} items for ${group.name}`);
+            console.log(`📦 FIXED: Found ${allItems.length} items for ${group.name} (${allItems.filter(i => i.type === 'order').length} orders + ${allItems.filter(i => i.type === 'forecast').length} forecasts)`);
+            if (allItems.filter(i => i.type === 'forecast').length > 0) {
+                console.log(`📈 Forecast items included in stock calculation for ${group.name}:`, 
+                    allItems.filter(i => i.type === 'forecast').map(i => `${i.date}: ${i.quantity}`));
+            }
             allItems.forEach((item, index) => {
                 console.log(`  ${index + 1}. ${item.type}: ${item.date} - ${item.quantity} (Product: ${item.product})`);
             });
@@ -377,8 +381,9 @@ class EDIDashboard {
                 let itemKey;
                 if (item.type === 'order') {
                     itemKey = `order-${item.id}`;
-                } else {
-                    itemKey = `forecast-${item.forecastKey}`;
+                } else if (item.type === 'forecast') {
+                    // Use the same key format as in isItemStockSufficient
+                    itemKey = `forecast-${item.product}-${item.monthDate}`;
                 }
                 
                 itemAvailability[itemKey] = {
@@ -464,12 +469,12 @@ class EDIDashboard {
                             quantity: quantity,
                             product: product,
                             monthDate: monthDate,
-                            forecastKey: key,
+                            forecastKey: key,  // Keep the full key for reference
                             priority: 3
                         });
                         
                         forecastsFound++;
-                        console.log(`✅ FIXED: Added forecast ${key} with quantity ${quantity} and date ${fullDate}`);
+                        console.log(`✅ FIXED: Added forecast ${key} with quantity ${quantity} and date ${fullDate} for stock calculations`);
                     } else {
                         console.log(`⚠️ FIXED: Skipped forecast ${key} - quantity is ${quantity}`);
                     }
@@ -494,7 +499,7 @@ class EDIDashboard {
         }
     }
 
-    // Enhanced stock sufficiency check with better fallback logic
+    // Enhanced stock sufficiency check with better fallback logic and forecast support
     isItemStockSufficient(drawingNumber, item) {
         try {
             // Find which group this product belongs to
@@ -518,6 +523,7 @@ class EDIDashboard {
             
             // If no stock at all, everything is insufficient
             if (calculations.allItemsInsufficient || calculations.currentStock <= 0) {
+                console.log(`🔴 No stock available for ${groupKey} - marking as insufficient`);
                 return false;
             }
             
@@ -533,16 +539,18 @@ class EDIDashboard {
                     itemKey = `order-${order.id}`;
                 }
             } else if (item.type === 'forecast') {
+                // For forecasts, use the drawing number and month date
                 itemKey = `forecast-${drawingNumber}-${item.monthDate}`;
             }
             
             if (itemKey && calculations.itemAvailability[itemKey]) {
                 const result = calculations.itemAvailability[itemKey].sufficient;
-                console.log(`🔍 Stock check for ${itemKey}: ${result ? 'SUFFICIENT' : 'INSUFFICIENT'}`);
+                console.log(`🔍 Stock check for ${itemKey}: ${result ? 'SUFFICIENT ✓' : 'INSUFFICIENT ✗'}`);
                 return result;
             }
             
-            console.warn(`⚠️ Item key ${itemKey} not found in availability calculations`);
+            console.warn(`⚠️ Item key ${itemKey} not found in availability calculations for ${groupKey}`);
+            console.log(`Available keys:`, Object.keys(calculations.itemAvailability || {}));
             return true; // Default to sufficient if not found
             
         } catch (error) {
@@ -1039,6 +1047,9 @@ class EDIDashboard {
                 };
                 const hasStock = this.isItemStockSufficient(drawingNumber, forecastItem);
                 
+                // Debug logging for forecast stock calculation
+                console.log(`📊 Forecast bar: ${d.displayDate}, Quantity: ${d.quantity}, Has Stock: ${hasStock}`);
+                
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('x', x);
                 rect.setAttribute('y', barBottom - totalBarHeight);
@@ -1047,14 +1058,14 @@ class EDIDashboard {
                 
                 // Apply stock-based styling for forecasts
                 if (hasStock) {
-                    // Sufficient stock: normal forecast styling
+                    // Sufficient stock: SOLID filled forecast bar
                     rect.setAttribute('fill', '#e5e7eb');
                     rect.setAttribute('stroke', '#9ca3af');
                     rect.setAttribute('stroke-width', '1');
-                    rect.setAttribute('stroke-dasharray', '3,3');
+                    // NO stroke-dasharray - make it SOLID when stock is sufficient
                     rect.setAttribute('opacity', '1');
                 } else {
-                    // Insufficient stock: transparent with strong warning outline
+                    // Insufficient stock: transparent with dashed warning outline
                     rect.setAttribute('fill', 'none');
                     rect.setAttribute('stroke', '#dc2626');
                     rect.setAttribute('stroke-width', '3');
@@ -1064,12 +1075,12 @@ class EDIDashboard {
                 
                 rect.setAttribute('class', 'bar-segment');
                 
-                const stockText = hasStock ? '' : ' [INSUFFICIENT STOCK - Material shortage expected]';
+                const stockText = hasStock ? ' [STOCK AVAILABLE]' : ' [INSUFFICIENT STOCK - Material shortage expected]';
                 const tooltipText = `Forecast: ${d.displayDate}\nQuantity: ${d.quantity}${stockText}`;
                 rect.setAttribute('title', tooltipText);
                 svg.appendChild(rect);
                 
-                // Add forecast label with stock warning
+                // Add forecast label with stock status
                 const forecastLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 forecastLabel.setAttribute('class', 'chart-text');
                 forecastLabel.setAttribute('x', x + barWidth / 2);
@@ -1078,11 +1089,11 @@ class EDIDashboard {
                 forecastLabel.setAttribute('font-size', '11');
                 forecastLabel.setAttribute('fill', hasStock ? '#6b7280' : '#dc2626');
                 forecastLabel.setAttribute('font-weight', 'bold');
-                forecastLabel.textContent = hasStock ? 'Forecast' : 'F - No Stock!';
+                forecastLabel.textContent = hasStock ? 'Forecast ✓' : 'Forecast ⚠';
                 svg.appendChild(forecastLabel);
             }
             
-            // Add quantity label on top of bar with stock warning
+            // Add quantity label on top of bar with stock indicator
             const hasAnyStock = d.type === 'order' ? 
                 d.orders.some(order => {
                     const isOkStatus = order.status && order.status.toLowerCase().trim() === 'ok';
@@ -1101,7 +1112,7 @@ class EDIDashboard {
             quantityText.setAttribute('font-weight', 'bold');
             quantityText.setAttribute('font-size', hasAnyStock ? '12' : '11');
             quantityText.setAttribute('fill', hasAnyStock ? '#1f2937' : '#dc2626');
-            quantityText.textContent = hasAnyStock ? d.quantity : `${d.quantity}⚠️`;
+            quantityText.textContent = d.quantity.toLocaleString();
             svg.appendChild(quantityText);
             
             // Add date label below X-axis
@@ -1124,9 +1135,9 @@ class EDIDashboard {
             typeText.setAttribute('text-anchor', 'middle');
             typeText.setAttribute('font-size', '9');
             typeText.setAttribute('fill', hasAnyStock ? '#9ca3af' : '#dc2626');
-            typeText.textContent = hasAnyStock ? 
-                (d.type === 'forecast' ? 'Forecast' : d.date.split('/')[0]) : 
-                'No Stock';
+            typeText.textContent = d.type === 'forecast' ? 
+                (hasAnyStock ? 'Forecast ✓' : 'Forecast ✗') : 
+                (hasAnyStock ? d.date.split('/')[0] : 'No Stock');
             svg.appendChild(typeText);
         });
         
@@ -1163,8 +1174,8 @@ class EDIDashboard {
             { color: '#059669', label: 'OK Status', priority: 'Bottom' },
             { color: '#f59e0b', label: 'With Comments', priority: 'Middle' },
             { color: '#4f46e5', label: 'No Status', priority: 'Top' },
-            { color: '#e5e7eb', label: 'Forecast', dashed: true },
-            { color: '#dc2626', label: 'No Stock', outline: true, warning: true }
+            { color: '#e5e7eb', label: 'Forecast (Solid=Stock OK)', solid: true },
+            { color: '#dc2626', label: 'No Stock (Dashed)', outline: true, warning: true }
         ];
         
         legendItems.forEach((item, index) => {
@@ -1183,11 +1194,9 @@ class EDIDashboard {
                 legendRect.setAttribute('stroke-dasharray', item.warning ? '3,3' : '2,2');
             } else {
                 legendRect.setAttribute('fill', item.color);
-                legendRect.setAttribute('stroke', item.dashed ? '#9ca3af' : '#ffffff');
+                legendRect.setAttribute('stroke', item.solid ? '#9ca3af' : '#ffffff');
                 legendRect.setAttribute('stroke-width', '1');
-                if (item.dashed) {
-                    legendRect.setAttribute('stroke-dasharray', '2,2');
-                }
+                // No dashed array for solid items
             }
             svg.appendChild(legendRect);
             
@@ -1208,7 +1217,7 @@ class EDIDashboard {
         titleText.setAttribute('text-anchor', 'middle');
         titleText.setAttribute('font-size', '10');
         titleText.setAttribute('fill', '#6b7280');
-        titleText.textContent = 'FIXED: Delivery Schedule with Material Stock Analysis & Forecast Integration & Priority Stacking (OK→Comments→No Status)';
+        titleText.textContent = 'Delivery Schedule with Stock Analysis - Forecasts: Solid=Sufficient Stock, Dashed=Insufficient Stock';
         svg.appendChild(titleText);
         
         container.innerHTML = '';
