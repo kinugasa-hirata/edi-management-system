@@ -7,8 +7,10 @@
     
     <!-- External CSS -->
     <link rel="stylesheet" href="/css/dashboard-styles.css">
+    <!-- FIXED: Include auth utils before dashboard script -->
+    <script src="/js/auth-utils.js"></script>
     <style>
-        /* Enhanced dashboard styles with export functionality */
+        /* Enhanced dashboard styles with fixed stock visualization */
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -24,6 +26,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 10px;
             color: white;
+            position: relative;
         }
 
         .user-info {
@@ -33,6 +36,10 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 6px;
+            backdrop-filter: blur(10px);
         }
 
         .user-role {
@@ -52,7 +59,7 @@
             color: white;
         }
 
-        /* Navigation bar styles */
+        /* Enhanced navigation bar styles */
         .navigation-bar {
             background: #f8fafc;
             padding: 15px 30px;
@@ -87,6 +94,7 @@
             margin-left: auto;
         }
 
+        /* Enhanced controls section */
         .controls {
             display: flex;
             gap: 20px;
@@ -99,7 +107,7 @@
             border: 1px solid #e5e7eb;
         }
 
-        .import-controls, .export-controls, .save-controls {
+        .import-controls, .export-controls, .save-controls, .debug-controls {
             display: flex;
             gap: 10px;
             align-items: center;
@@ -110,6 +118,12 @@
             padding-left: 20px;
         }
 
+        .debug-controls {
+            border-left: 1px solid #e5e7eb;
+            padding-left: 20px;
+        }
+
+        /* Enhanced button styles */
         .btn {
             padding: 10px 16px;
             border-radius: 6px;
@@ -121,9 +135,10 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            font-size: 0.9rem;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
@@ -140,7 +155,7 @@
             color: white;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: #4338ca;
         }
 
@@ -150,7 +165,7 @@
             color: white;
         }
 
-        .btn-secondary:hover {
+        .btn-secondary:hover:not(:disabled) {
             background: #4b5563;
         }
 
@@ -160,7 +175,7 @@
             color: white;
         }
 
-        .btn-success:hover {
+        .btn-success:hover:not(:disabled) {
             background: #047857;
         }
 
@@ -170,8 +185,18 @@
             color: white;
         }
 
-        .btn-warning:hover {
+        .btn-warning:hover:not(:disabled) {
             background: #d97706;
+        }
+
+        .btn-info {
+            background: #0ea5e9;
+            border-color: #0284c7;
+            color: white;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #0284c7;
         }
 
         .btn-logout {
@@ -180,7 +205,7 @@
             color: white;
         }
 
-        .btn-logout:hover {
+        .btn-logout:hover:not(:disabled) {
             background: #b91c1c;
         }
 
@@ -203,6 +228,33 @@
             display: block;
         }
 
+        /* Enhanced stock visualization notice */
+        .stock-notice {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            color: #1e40af;
+            font-weight: 500;
+        }
+
+        .stock-notice h4 {
+            margin: 0 0 8px 0;
+            color: #1e3a8a;
+            font-size: 1.1rem;
+        }
+
+        .stock-notice ul {
+            margin: 8px 0 0 20px;
+            color: #1e40af;
+        }
+
+        .stock-notice li {
+            margin-bottom: 4px;
+        }
+
+        /* Enhanced message styles */
         .loading {
             display: none;
             text-align: center;
@@ -518,14 +570,14 @@
                 gap: 12px;
             }
             
-            .export-controls {
+            .export-controls, .debug-controls {
                 border-left: none;
                 border-top: 1px solid #e5e7eb;
                 padding-left: 0;
                 padding-top: 15px;
             }
             
-            .import-controls, .export-controls, .save-controls {
+            .import-controls, .export-controls, .save-controls, .debug-controls {
                 justify-content: center;
             }
 
@@ -563,7 +615,7 @@
                 <span id="userDisplay">Loading...</span>
             </div>
             <h1>📊 EDI Management Dashboard</h1>
-            <p>Real-time Order Tracking and Production Planning</p>
+            <p>✅ FIXED: Real-time Order Tracking with Enhanced Stock-Based Chart Visualization</p>
         </div>
 
         <!-- Navigation Bar -->
@@ -583,7 +635,19 @@
                 Loading data...
             </div>
 
-            <!-- 📊 Enhanced Controls with Login History -->
+            <!-- ✅ FIXED: Enhanced Stock Visualization Notice -->
+            <div class="stock-notice">
+                <h4>✅ FIXED: Enhanced Stock-Based Chart Visualization</h4>
+                <ul>
+                    <li><strong>Green OK Status:</strong> Always solid green bars (completed orders, no stock needed)</li>
+                    <li><strong>Yellow/Blue Orders:</strong> Solid bars when stock available, dashed outline when insufficient</li>
+                    <li><strong>Gray Forecasts:</strong> Solid bars when stock available, dashed red outline when insufficient</li>
+                    <li><strong>Smart Stacking:</strong> OK status (bottom) → Comments (middle) → No status (top)</li>
+                    <li><strong>Real-time Integration:</strong> Charts automatically update based on material stock levels</li>
+                </ul>
+            </div>
+
+            <!-- 📊 Enhanced Controls with Debugging -->
             <div class="controls">
                 <!-- Import controls -->
                 <div class="import-controls">
@@ -604,6 +668,16 @@
                     <button class="btn btn-primary admin-only" id="saveAllBtn">💾 Save All Changes</button>
                     <button class="btn btn-warning admin-only" id="loginHistoryBtn" onclick="showLoginHistory()" style="display: none;">
                         📋 Login History
+                    </button>
+                </div>
+
+                <!-- ✅ FIXED: Debug controls for stock visualization testing -->
+                <div class="debug-controls">
+                    <button class="btn btn-info" onclick="debugAllStockCalculations()">
+                        🔍 Debug All Stock
+                    </button>
+                    <button class="btn btn-info" onclick="testForecastStockCalculation()">
+                        🧪 Test Forecasts
                     </button>
                 </div>
                 
@@ -627,7 +701,7 @@
             <!-- Main Dashboard -->
             <div id="mainDashboard" class="tab-content active">
                 <div class="data-header">
-                    <h2>All EDI Orders</h2>
+                    <h2>All EDI Orders with Stock Analysis</h2>
                     <span class="record-count" id="recordCount">Loading...</span>
                 </div>
                 <div id="dataContainer">
@@ -734,7 +808,7 @@
 
             <div id="tab-PP4166-4731P002" class="tab-content">
                 <div class="data-header">
-                    <h2>⚙️ PP4166-4731P002 - ﾐﾄﾞﾙﾌﾚｰﾑ</h2>
+                    <h2>⚙️ PP4166-4731P002 - ﾐﾄﾞﾙﾌﾚｰﾑ A</h2>
                 </div>
                 <div class="product-stats">
                     <div class="stat-card">
@@ -757,7 +831,7 @@
 
             <div id="tab-PP4166-7106P001" class="tab-content">
                 <div class="data-header">
-                    <h2>⚙️ PP4166-7106P001 - ﾐﾄﾞﾙﾌﾚｰﾑ</h2>
+                    <h2>⚙️ PP4166-7106P001 - ﾐﾄﾞﾙﾌﾚｰﾑ B</h2>
                 </div>
                 <div class="product-stats">
                     <div class="stat-card">
@@ -780,7 +854,7 @@
 
             <div id="tab-PP4166-7106P003" class="tab-content">
                 <div class="data-header">
-                    <h2>⚙️ PP4166-7106P003 - ﾐﾄﾞﾙﾌﾚｰﾑ</h2>
+                    <h2>⚙️ PP4166-7106P003 - ﾐﾄﾞﾙﾌﾚｰﾑ B</h2>
                 </div>
                 <div class="product-stats">
                     <div class="stat-card">
@@ -803,71 +877,80 @@
         </div>
     </div>
 
-    <!-- Enhanced JavaScript -->
+    <!-- ✅ FIXED: Load dashboard app with all fixes -->
     <script src="/js/dashboard-app.js"></script>
     <script>
-        // ============ SIMPLIFIED EXPORT FUNCTIONALITY ============
-        // Add these methods to the EDIDashboard class
-        EDIDashboard.prototype.exportToCSV = async function() {
-            try {
-                console.log('📊 Starting CSV export...');
-                this.showMessage('Preparing CSV export...', 'info');
-                
-                const response = await fetch('/api/export/csv', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Export failed: ${response.status}`);
-                }
-                
-                // Get the blob from response
-                const blob = await response.blob();
-                
-                // Create download link
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                
-                // Generate filename with current date
-                const now = new Date();
-                const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-                a.download = `EDI_Orders_${dateStr}.csv`;
-                
-                // Trigger download
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                this.showMessage('CSV file downloaded successfully! Opens in Excel.', 'success');
-                console.log('✅ CSV export completed');
-                
-            } catch (error) {
-                console.error('❌ CSV export error:', error);
-                this.showMessage('Failed to export CSV file: ' + error.message, 'error');
-            }
-        };
-
-        // ============ SIMPLIFIED GLOBAL EXPORT FUNCTIONS ============
+        // ============ ENHANCED GLOBAL FUNCTIONS ============
+        
+        // Enhanced export functions
         window.exportToCSV = function() {
             if (window.ediDashboard) {
                 window.ediDashboard.exportToCSV();
             } else {
-                console.error('❌ EDI Dashboard not found');
+                console.error('❌ FIXED: EDI Dashboard not found');
                 alert('Export functionality not available');
             }
         };
 
-        // ============ LOGIN HISTORY FUNCTIONALITY ============
+        window.exportToJSON = function() {
+            if (window.ediDashboard) {
+                window.ediDashboard.exportToJSON();
+            } else {
+                console.error('❌ FIXED: EDI Dashboard not found');
+                alert('Export functionality not available');
+            }
+        };
+
+        // ✅ FIXED: Enhanced debugging functions for stock visualization
+        window.debugAllStockCalculations = function() {
+            if (window.ediDashboard) {
+                window.ediDashboard.debugStockCalculationsDetailed();
+                console.log('💡 TIP: Use debugStockForProduct("PP4166-4681P003") to debug specific products');
+            } else {
+                console.log('❌ EDI Dashboard not found');
+            }
+        };
+
+        window.debugStockForProduct = function(drawingNumber) {
+            if (window.ediDashboard) {
+                window.ediDashboard.debugStockCalculationsDetailed(drawingNumber);
+            } else {
+                console.log('❌ EDI Dashboard not found');
+            }
+        };
+
+        window.testForecastStockCalculation = function() {
+            if (window.ediDashboard && typeof window.testForecastStockCalculation !== 'undefined') {
+                window.testForecastStockCalculation();
+            } else {
+                console.log('❌ Test function not available yet. Dashboard may still be loading.');
+            }
+        };
+
+        // Quick test functions for common scenarios
+        window.testAllProducts = function() {
+            const products = ['PP4166-4681P003', 'PP4166-4726P003', 'PP4166-4731P002', 'PP4166-7106P001'];
+            console.log('🧪 TESTING ALL MAJOR PRODUCTS:');
+            products.forEach(product => {
+                console.log(`\n--- ${product} ---`);
+                debugStockForProduct(product);
+            });
+        };
+
+        window.quickStockTest = function() {
+            console.log('⚡ QUICK STOCK TEST:');
+            console.log('1. Testing all stock calculations...');
+            debugAllStockCalculations();
+            console.log('\n2. Testing forecast calculations...');
+            testForecastStockCalculation();
+            console.log('\n✅ Quick test complete! Check console output above.');
+        };
+
+        // Login history function placeholder
         window.showLoginHistory = function() {
             if (window.ediDashboard) {
-                // This function would be implemented in the dashboard-app.js
-                console.log('📋 Opening login history...');
-                alert('Login History feature - to be implemented in dashboard-app.js');
+                console.log('📋 Login History feature - to be implemented');
+                alert('Login History feature will be implemented in future version');
             } else {
                 console.error('❌ EDI Dashboard not found');
                 alert('Login History functionality not available');
@@ -876,6 +959,18 @@
         
         // Make dashboard available globally
         window.ediDashboard = ediDashboard;
+
+        // Show helpful tips on page load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                console.log('💡 HELPFUL DEBUGGING COMMANDS:');
+                console.log('   quickStockTest() - Run a comprehensive test');
+                console.log('   debugAllStockCalculations() - Debug all stock calculations');
+                console.log('   debugStockForProduct("PP4166-4681P003") - Debug specific product');
+                console.log('   testForecastStockCalculation() - Test forecast stock integration');
+                console.log('   testSingleForecast("PP4166-4681P003", "10/01") - Test single forecast');
+            }, 2000);
+        });
     </script>
 </body>
 </html>
